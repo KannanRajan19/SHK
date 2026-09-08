@@ -67,6 +67,8 @@ const doodles = extractArray('DOODLES');
 for (const d of doodles)
   write(`content/doodles/${slug(d.title)}.json`, {
     title: d.title, date: d.date, note: d.note, image: d.image ?? '',
+    // The label shown inside the striped stand-in until a real scan arrives.
+    placeholder: d.placeholder ?? 'doodle',
   });
 
 const pictures = extractArray('PICTURES');

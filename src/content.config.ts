@@ -25,6 +25,7 @@ const doodles = defineCollection({
     date: z.string(),
     note: z.string(),
     image: z.string().default(''),
+    placeholder: z.string().default('doodle'),
   }),
 });
 
