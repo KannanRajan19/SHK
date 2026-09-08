@@ -1,0 +1,105 @@
+---
+import { getEntry } from 'astro:content';
+import '../styles/global.css';
+
+interface Props {
+  title: string;
+  page: string;
+}
+
+const { title, page } = Astro.props;
+
+const SITE_NAME = 'my little paper sky';
+const TAGLINE = 'sahana hypatia kannan';
+
+// Ids and labels are the prototype's PAGES array; href is the new real route.
+const PAGES = [
+  { id: 'home', label: 'home', href: '/' },
+  { id: 'about', label: 'about', href: '/about' },
+  { id: 'doodles', label: 'doodles', href: '/doodles' },
+  { id: 'blog', label: 'blog', href: '/blog' },
+  { id: 'reviews', label: 'book log', href: '/books' },
+  { id: 'pictures', label: 'pictures', href: '/pictures' },
+  { id: 'contact', label: 'contact', href: '/contact' },
+];
+
+const screenLabel = PAGES.find((p) => p.id === page)?.label ?? page;
+
+const currently = (await getEntry('settings', 'currently'))?.data as
+  | Record<string, string>
+  | undefined;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Special+Elite&family=Caveat:wght@400;600&family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <canvas id="trail"></canvas>
+
+    <div class="app" data-screen-label={screenLabel}>
+      <header class="masthead">
+        <span class="stamp">est. 2026 · no. 01</span>
+        <h1><a href="/">{SITE_NAME}</a></h1>
+        <p class="tagline">— {TAGLINE} —</p>
+      </header>
+
+      <nav class="nav">
+        {
+          PAGES.map((p) => (
+            <a href={p.href} aria-current={p.id === page ? 'page' : undefined}>
+              {p.label}
+            </a>
+          ))
+        }
+      </nav>
+
+      <slot />
+
+      <footer>
+        <span>© 2026 · made with care</span>
+        <span><span>{screenLabel}</span> · <span data-today>—</span></span>
+      </footer>
+    </div>
+
+    {
+      currently && (
+        <aside class="currently">
+          <h4>currently</h4>
+          <div class="row"><span class="key">reading</span><span class="val">{currently.reading}</span></div>
+          <div class="row"><span class="key">drawing</span><span class="val">{currently.drawing}</span></div>
+          <div class="row"><span class="key">listening</span><span class="val">{currently.listening}</span></div>
+          <div class="row"><span class="key">watching</span><span class="val">{currently.watching}</span></div>
+          <div class="row"><span class="key">learning</span><span class="val">{currently.learning}</span></div>
+        </aside>
+      )
+    }
+
+    <script is:inline>
+      // The prototype printed today's date, not the build date. On a static
+      // site that has to happen in the browser or the footer goes stale.
+      document.querySelectorAll('[data-today]').forEach((el) => {
+        el.textContent = new Date()
+          .toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+          .toLowerCase();
+      });
+    </script>
+    <script is:inline src="/scripts/trail.js"></script>
+  </body>
+</html>
+
+<style is:global>
+  .masthead h1 a {
+    color: inherit;
+    text-decoration: none;
+  }
+</style>

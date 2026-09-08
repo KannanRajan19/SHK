@@ -1,0 +1,21 @@
+{
+  "title": "a small recipe for marmalade",
+  "date": "Apr 21, 2026",
+  "tag": "cooking",
+  "minutes": 1,
+  "excerpt": "we had too many lemons. now we don't. here is what happened in between.",
+  "blocks": [
+    {
+      "type": "text",
+      "value": "you need: lemons (a lot), sugar (almost as much), water, time, a heavy pot, a clean jar, and someone to call when it sets."
+    },
+    {
+      "type": "text",
+      "value": "slice the lemons very thin. put them in the pot with the water. simmer until everything is soft and the kitchen smells like a greenhouse. add the sugar. stir. wait."
+    },
+    {
+      "type": "text",
+      "value": "the trick is the wait. it will look like syrup for a long time. then, all at once, it will be marmalade. you'll know."
+    }
+  ]
+}

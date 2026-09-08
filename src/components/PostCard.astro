@@ -1,0 +1,95 @@
+---
+interface Props {
+  title: string;
+  date: string;
+  tag?: string;
+  minutes: number;
+  excerpt: string;
+  href: string;
+  index: number;
+}
+
+const { title, date, tag, minutes, excerpt, href, index } = Astro.props;
+// Deterministic, matching the prototype's PostCard formula exactly.
+const rot = ((index % 5) - 2) * 0.4;
+---
+
+<a class="post-card" href={href} style={`--rot: ${rot}deg;`}>
+  <div>
+    <div class="head">
+      <span class="date">{date}</span>
+      <span class="tag">{tag}</span>
+    </div>
+    <h3>{title}</h3>
+    <p class="excerpt">{excerpt}</p>
+  </div>
+  <div class="foot">
+    <span>{minutes} min read</span>
+    <span class="open">open →</span>
+  </div>
+</a>
+
+<style>
+  .post-card {
+    background: #fdfaf2;
+    border: 1px solid var(--rule);
+    padding: 20px 20px 22px;
+    text-align: left;
+    text-decoration: none;
+    color: inherit;
+    position: relative;
+    min-height: 200px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    transform: rotate(0) translateY(0);
+    transition: transform 0.35s ease, box-shadow 0.35s ease, border-color 0.2s;
+    box-shadow: 0 2px 0 rgba(80, 50, 20, 0.04);
+  }
+  .post-card:hover {
+    transform: rotate(var(--rot)) translateY(-3px);
+    box-shadow: 0 16px 28px -14px rgba(80, 50, 20, 0.28);
+    border-color: var(--accent);
+  }
+  .head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 12px;
+  }
+  .date {
+    font-family: var(--font-mono);
+    font-size: 9.5px;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+  }
+  .tag {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+  h3 {
+    font-family: var(--font-display);
+    font-style: italic;
+    font-weight: 500;
+    font-size: 22px;
+    line-height: 1.2;
+    margin: 0 0 12px;
+  }
+  .excerpt { margin: 0; font-size: 13.5px; color: var(--ink-soft); line-height: 1.6; }
+  .foot {
+    margin-top: 18px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    color: var(--ink-faint);
+    text-transform: uppercase;
+    display: flex;
+    justify-content: space-between;
+  }
+  .open { transition: color 0.2s; }
+  .post-card:hover .open { color: var(--accent); }
+</style>

@@ -1,0 +1,29 @@
+---
+import Base from '../layouts/Base.astro';
+---
+
+<Base title="not found · my little paper sky" page="404">
+  <div class="page">
+    <div class="section-label"><span>page not found</span></div>
+    <h2 class="title-serif">this page wandered off</h2>
+    <p class="lost">
+      nothing here, i'm afraid. it may have been moved, or it may never
+      have existed at all.
+    </p>
+    <div class="ctas">
+      <a class="btn accent" href="/">go back home</a>
+      <a class="btn" href="/blog">read the blog</a>
+    </div>
+  </div>
+</Base>
+
+<style>
+  .lost {
+    font-size: 16px;
+    line-height: 1.8;
+    max-width: 46ch;
+    color: var(--ink-soft);
+    margin: 0 0 28px;
+  }
+  .ctas { display: flex; gap: 12px; flex-wrap: wrap; }
+</style>

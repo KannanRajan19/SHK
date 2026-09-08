@@ -1,0 +1,156 @@
+---
+import { getCollection } from 'astro:content';
+import Base from '../layouts/Base.astro';
+
+const doodles = (await getCollection('doodles'))
+  .map((d) => d.data)
+  .sort((a, b) => Date.parse(b.date) - Date.parse(a.date));
+---
+
+<Base title="doodles · my little paper sky" page="doodles">
+  <div class="page">
+    <div class="section-label"><span>doodles</span></div>
+    <div class="head">
+      <h2 class="title-serif" style="margin: 0;">one at a time</h2>
+      <div class="counter">
+        <span data-counter>{String(1).padStart(2, '0')}</span> / {String(doodles.length).padStart(2, '0')}
+      </div>
+    </div>
+
+    {doodles.length === 0 && (
+      <div class="placeholder" style="aspect-ratio: 4/3; width: 100%;">no doodles yet</div>
+    )}
+
+    {/*
+      Every doodle is rendered server-side and all but one hidden, so the
+      content is in the HTML for search engines and for readers without JS.
+      The pager only toggles visibility.
+    */}
+    {doodles.map((d, i) => (
+      <div class="sheet-wrap" data-doodle hidden={i !== 0}>
+        <div class="tape" style="top: -12px; left: 36px; transform: rotate(-4deg);"></div>
+        <div class="tape" style="top: -12px; right: 48px; transform: rotate(3deg);"></div>
+        <div class="sheet">
+          {d.image
+            ? <img src={d.image} alt={d.title} style="width: 100%; aspect-ratio: 4/3; object-fit: cover;" />
+            : <div class="placeholder" style="aspect-ratio: 4/3; width: 100%; font-size: 11px;">{d.placeholder}</div>}
+          <div class="meta">
+            <div>
+              <div class="date">{d.date}</div>
+              <div class="doodle-title">{d.title}</div>
+            </div>
+          </div>
+          <p class="note">{d.note}</p>
+        </div>
+      </div>
+    ))}
+
+    {doodles.length > 1 && (
+      <div class="pager">
+        <button class="btn" data-prev disabled>← previous</button>
+        <div class="dots">
+          {doodles.map((_, n) => (
+            <button data-dot={n} aria-label={`doodle ${n + 1}`} class={n === 0 ? 'on' : ''}></button>
+          ))}
+        </div>
+        <button class="btn" data-next>next →</button>
+      </div>
+    )}
+  </div>
+</Base>
+
+<script>
+  const sheets = Array.from(document.querySelectorAll<HTMLElement>('[data-doodle]'));
+  if (sheets.length > 1) {
+    const dots = Array.from(document.querySelectorAll<HTMLButtonElement>('[data-dot]'));
+    const prev = document.querySelector<HTMLButtonElement>('[data-prev]')!;
+    const next = document.querySelector<HTMLButtonElement>('[data-next]')!;
+    const counter = document.querySelector<HTMLElement>('[data-counter]')!;
+    let i = 0;
+
+    const show = (n: number) => {
+      i = Math.min(Math.max(0, n), sheets.length - 1);
+      sheets.forEach((el, k) => (el.hidden = k !== i));
+      dots.forEach((el, k) => el.classList.toggle('on', k === i));
+      prev.disabled = i === 0;
+      next.disabled = i === sheets.length - 1;
+      counter.textContent = String(i + 1).padStart(2, '0');
+    };
+
+    prev.addEventListener('click', () => show(i - 1));
+    next.addEventListener('click', () => show(i + 1));
+    dots.forEach((dot, k) => dot.addEventListener('click', () => show(k)));
+    show(0);
+  }
+</script>
+
+<style>
+  .head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 24px;
+  }
+  .counter {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--ink-faint);
+    letter-spacing: 0.2em;
+  }
+  .sheet-wrap { position: relative; transform: rotate(-0.6deg); }
+  .sheet {
+    background: #fdfaf2;
+    border: 1px solid var(--rule);
+    padding: 32px 32px 28px;
+    box-shadow: 0 16px 32px -18px rgba(80, 50, 20, 0.35);
+  }
+  .meta {
+    margin-top: 22px;
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  .date {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin-bottom: 4px;
+  }
+  .doodle-title {
+    font-family: var(--font-display);
+    font-size: 26px;
+    font-style: italic;
+    line-height: 1.2;
+  }
+  .note {
+    font-family: var(--font-hand);
+    font-size: 22px;
+    color: var(--ink-soft);
+    line-height: 1.4;
+    margin: 20px 0 0;
+    max-width: 46ch;
+  }
+  .pager {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 40px;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .pager .btn:disabled { opacity: 0.35; }
+  .dots { display: flex; gap: 6px; }
+  .dots button {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    border: none;
+    background: var(--rule);
+    padding: 0;
+  }
+  .dots button.on { background: var(--accent); }
+</style>

@@ -1,0 +1,94 @@
+---
+import { getCollection } from 'astro:content';
+import Base from '../../layouts/Base.astro';
+
+export async function getStaticPaths() {
+  const posts = await getCollection('posts');
+  return posts.map((post) => ({ params: { slug: post.id }, props: { post } }));
+}
+
+const { post } = Astro.props;
+const { title, date, tag, minutes, blocks } = post.data;
+---
+
+<Base title={`${title} · my little paper sky`} page="blog">
+  <div class="page">
+    <a class="btn" href="/blog" style="margin-bottom: 32px; display: inline-block;">
+      ← back to the blog
+    </a>
+
+    <article>
+      <div class="kicker">{tag} · {minutes} min read</div>
+      <div class="date">{date}</div>
+      <h1 class="title-serif post-title">{title}</h1>
+
+      <div class="body">
+        {blocks.map((block, i) =>
+          block.type === 'image' ? (
+            <figure>
+              <img src={block.value} alt={block.caption ?? ''} />
+              {block.caption && <figcaption>{block.caption}</figcaption>}
+            </figure>
+          ) : (
+            <p style={i === 0 ? 'margin-top: 0;' : ''}>{block.value}</p>
+          )
+        )}
+      </div>
+
+      <div class="signoff">— s.</div>
+
+      <div style="margin-top: 40px;">
+        <a class="btn accent" href="/blog">← more posts</a>
+      </div>
+    </article>
+  </div>
+</Base>
+
+<style>
+  article { max-width: 68ch; margin: 0 auto; }
+  .kicker {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 8px;
+  }
+  .date {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin-bottom: 22px;
+  }
+  .post-title {
+    font-size: clamp(34px, 5vw, 52px);
+    margin: 0 0 36px;
+  }
+  .body { font-size: 17.5px; line-height: 1.9; color: var(--ink-soft); }
+  .body p { margin-top: 20px; }
+  .body figure { margin: 28px 0; }
+  .body figure img {
+    width: 100%;
+    display: block;
+    border: 1px solid var(--rule);
+  }
+  .body figcaption {
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin-top: 8px;
+  }
+  .signoff {
+    margin-top: 48px;
+    padding-top: 24px;
+    border-top: 1px solid var(--rule);
+    font-family: var(--font-hand);
+    font-size: 24px;
+    color: var(--accent);
+    text-align: right;
+  }
+</style>

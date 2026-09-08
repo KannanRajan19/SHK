@@ -1,0 +1,64 @@
+---
+/**
+ * "What's new" card. The prototype rotated these with Math.random(), which
+ * cannot work here: the server and the browser would disagree. The rotation
+ * is derived from the index instead, using the same formula and range as the
+ * picture cards, and the hover lift moves from JS state to a CSS :hover rule.
+ */
+interface Props {
+  kind: string;
+  date: string;
+  title: string;
+  note: string;
+  href: string;
+  index: number;
+}
+
+const { kind, date, title, note, href, index } = Astro.props;
+const rot = (((index * 37) % 100) - 50) / 60;
+---
+
+<a class="update-card" href={href} style={`--rot: ${rot}deg;`}>
+  <div class="kind">{kind} · {date}</div>
+  <div class="title">{title}</div>
+  <div class="note">{note}</div>
+</a>
+
+<style>
+  .update-card {
+    display: block;
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    padding: 18px 18px 20px;
+    text-align: left;
+    text-decoration: none;
+    color: inherit;
+    position: relative;
+    transform: rotate(0) translateY(0);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+  }
+  .update-card:hover {
+    transform: rotate(var(--rot)) translateY(-2px);
+    box-shadow: 0 12px 24px -12px rgba(80, 50, 20, 0.25);
+  }
+  .kind {
+    font-family: var(--font-mono);
+    font-size: 9.5px;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 8px;
+  }
+  .title {
+    font-family: var(--font-display);
+    font-size: 22px;
+    font-style: italic;
+    line-height: 1.2;
+    margin-bottom: 8px;
+  }
+  .note {
+    font-size: 13.5px;
+    color: var(--ink-soft);
+    line-height: 1.55;
+  }
+</style>

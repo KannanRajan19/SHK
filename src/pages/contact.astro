@@ -1,0 +1,228 @@
+---
+import Base from '../layouts/Base.astro';
+
+const socials = [
+  { label: 'instagram', handle: '@littlepapersky', note: 'doodles, weekly-ish' },
+  { label: 'are.na', handle: 'littlepapersky', note: "things i'm collecting" },
+  { label: 'bluesky', handle: '@papersky', note: 'rare and brief' },
+  { label: 'email', handle: 'hello@papersky.cafe', note: 'the slow way, my favorite' },
+];
+---
+
+<Base title="contact · my little paper sky" page="contact">
+  <div class="page">
+    <div class="section-label"><span>contact</span></div>
+    <h2 class="title-serif">say hello</h2>
+    <p class="intro">
+      i love letters. send a long one, a short one, a recipe, a recommendation,
+      a question. i answer everything, eventually.
+    </p>
+
+    <div class="contact-grid">
+      <div>
+        <div class="section-label" style="margin-bottom: 18px;"><span>by letter</span></div>
+
+        <form data-form novalidate>
+          <div class="field">
+            <label for="name">your name</label>
+            <input id="name" name="name" type="text" placeholder="how should i address you?" />
+            <span class="err" data-err="name"></span>
+          </div>
+          <div class="field">
+            <label for="email">your email</label>
+            <input id="email" name="email" type="email" placeholder="so i can write back" />
+            <span class="err" data-err="email"></span>
+          </div>
+          <div class="field">
+            <label for="message">message</label>
+            <textarea id="message" name="message" placeholder="say anything"></textarea>
+            <span class="err" data-err="message"></span>
+          </div>
+          <div>
+            <button type="submit" class="btn accent">send letter →</button>
+          </div>
+          <p class="form-error" data-form-error hidden></p>
+        </form>
+
+        <div class="sent" data-sent hidden>
+          <div class="thanks">thank you ♡</div>
+          <p class="soon">i'll write back soon.</p>
+          <button class="btn" data-again style="margin-top: 18px;">send another</button>
+        </div>
+      </div>
+
+      <div>
+        <div class="section-label" style="margin-bottom: 18px;"><span>elsewhere</span></div>
+        <ul class="socials">
+          {socials.map((s) => (
+            <li>
+              <span class="social-label">{s.label}</span>
+              <div>
+                <div class="handle">{s.handle}</div>
+                <div class="social-note">{s.note}</div>
+              </div>
+            </li>
+          ))}
+        </ul>
+
+        <div class="small-note">
+          <div class="tape" style="top: -10px; right: 24px;"></div>
+          <div class="note-kicker">a small note</div>
+          <p class="note-body">i'm slow to reply but i do reply. promise.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</Base>
+
+<script>
+  import { validateContact } from '../lib/validate';
+
+  const form = document.querySelector<HTMLFormElement>('[data-form]')!;
+  const sent = document.querySelector<HTMLElement>('[data-sent]')!;
+  const formError = document.querySelector<HTMLElement>('[data-form-error]')!;
+  const again = document.querySelector<HTMLButtonElement>('[data-again]')!;
+  const errorFor = (k: string) => document.querySelector<HTMLElement>(`[data-err="${k}"]`)!;
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    ['name', 'email', 'message'].forEach((k) => (errorFor(k).textContent = ''));
+    formError.hidden = true;
+
+    const data = Object.fromEntries(new FormData(form)) as unknown as {
+      name: string; email: string; message: string;
+    };
+
+    // The same check the endpoint runs, so the form never sends what the
+    // server would only reject.
+    const result = validateContact(data);
+    if (!result.ok) {
+      Object.entries(result.errors).forEach(([k, v]) => (errorFor(k).textContent = v));
+      return;
+    }
+
+    const button = form.querySelector('button[type=submit]') as HTMLButtonElement;
+    button.disabled = true;
+    button.textContent = 'sending…';
+
+    try {
+      const res = await fetch('/api/contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) throw new Error(String(res.status));
+      form.hidden = true;
+      sent.hidden = false;
+    } catch {
+      // Never claim a message was sent when it was not.
+      formError.textContent =
+        "sorry — the letter didn't go through. you can reach me at hello@papersky.cafe instead.";
+      formError.hidden = false;
+    } finally {
+      button.disabled = false;
+      button.textContent = 'send letter →';
+    }
+  });
+
+  again.addEventListener('click', () => {
+    form.reset();
+    form.hidden = false;
+    sent.hidden = true;
+  });
+</script>
+
+<style>
+  .intro { font-size: 15.5px; color: var(--ink-soft); max-width: 52ch; margin: 0 0 36px; }
+  .contact-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 56px; }
+  @media (max-width: 720px) {
+    .contact-grid { grid-template-columns: 1fr; gap: 48px; }
+  }
+
+  form { display: grid; gap: 20px; }
+  .field { display: grid; gap: 6px; }
+  .field label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+  }
+  .field input,
+  .field textarea {
+    font-family: var(--font-body);
+    font-size: 15px;
+    color: var(--ink);
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid var(--rule);
+    padding: 8px 2px;
+    outline: none;
+  }
+  .field textarea { min-height: 120px; resize: vertical; }
+  .field input:focus,
+  .field textarea:focus { border-bottom-color: var(--accent); }
+  .err { color: var(--accent); font-size: 13px; min-height: 1em; }
+  .form-error { color: var(--accent); font-size: 14px; margin: 0; }
+
+  .sent {
+    padding: 28px 24px;
+    border: 1px dashed var(--accent);
+    text-align: center;
+    position: relative;
+  }
+  .thanks {
+    font-family: var(--font-hand);
+    font-size: 32px;
+    color: var(--accent);
+    line-height: 1.1;
+  }
+  .soon { font-size: 14px; color: var(--ink-soft); margin: 12px 0 0; }
+
+  .socials { list-style: none; padding: 0; margin: 0; display: grid; gap: 14px; }
+  .socials li {
+    display: grid;
+    grid-template-columns: 90px 1fr;
+    gap: 16px;
+    align-items: baseline;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--rule);
+    transition: transform 0.2s;
+  }
+  .socials li:hover { transform: translateX(4px); }
+  .social-label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    transition: color 0.2s;
+  }
+  .socials li:hover .social-label { color: var(--accent); }
+  .handle { font-size: 15.5px; color: var(--ink); }
+  .social-note { font-size: 13px; color: var(--ink-faint); }
+
+  .small-note {
+    margin-top: 36px;
+    padding: 20px 22px;
+    background: var(--paper-deep);
+    border: 1px solid var(--rule);
+    position: relative;
+    transform: rotate(-0.7deg);
+  }
+  .note-kicker {
+    font-family: var(--font-mono);
+    font-size: 9.5px;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 8px;
+  }
+  .note-body {
+    font-family: var(--font-hand);
+    font-size: 20px;
+    color: var(--ink-soft);
+    margin: 0;
+    line-height: 1.4;
+  }
+</style>
