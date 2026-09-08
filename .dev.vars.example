@@ -1,0 +1,17 @@
+# Copy to .dev.vars for local development (gitignored).
+# In production these are set as encrypted environment variables in the
+# Cloudflare Pages dashboard -- never committed.
+
+# Contact form (leave unset and the form fails honestly with a fallback
+# address rather than pretending a message was sent).
+RESEND_API_KEY=
+CONTACT_RECIPIENT=kannan.ms@gmail.com
+CONTACT_SENDER=
+
+# Admin -- not used until the admin tasks land.
+ADMIN_PASSWORD_HASH=
+ADMIN_PASSWORD_SALT=
+SESSION_SECRET=
+GITHUB_TOKEN=
+GITHUB_REPO=KannanRajan19/SHK
+GITHUB_BRANCH=main
