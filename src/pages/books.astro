@@ -1,0 +1,287 @@
+---
+import { getCollection } from 'astro:content';
+import Base from '../layouts/Base.astro';
+import {
+  sortBooks, paginate, formatRating, formatFinished, isInProgress, averageRating, PER_PAGE,
+} from '../lib/books';
+import type { Book } from '../lib/books';
+
+// Collection order is insertion order, which is books.json order: newest first.
+const books = (await getCollection('books')).map((b) => b.data) as Book[];
+
+const sorted = sortBooks(books, 'recent');
+const firstPage = paginate(sorted, 1);
+const avg = averageRating(books);
+const finishedCount = books.filter((b) => !isInProgress(b)).length;
+---
+
+<Base title="book log · my little paper sky" page="reviews">
+  <div class="page">
+    <div class="section-label"><span>book log</span></div>
+
+    <div class="head">
+      <h2 class="title-serif" style="margin: 0;">everything i've read</h2>
+      <div class="sorts">
+        <button data-sort="recent" class="on">recent</button>
+        <button data-sort="rating">rating</button>
+        <button data-sort="author">author</button>
+      </div>
+    </div>
+
+    <p class="intro">
+      a ledger of books i've finished, with the date and a small thought.
+      <span class="stats">
+        {finishedCount} finished{avg !== null ? ` · avg ${avg.toFixed(1)}/5` : ''}
+      </span>
+    </p>
+
+    <div class="booklog">
+      <div class="booklog-head">
+        <span>no.</span><span>title</span><span>author</span><span>finished</span><span>rating</span>
+      </div>
+      <ul data-rows>
+        {firstPage.items.map((book, i) => (
+          <li data-book-row>
+            <button class="bl-row" data-toggle>
+              <span class="bl-n">{String(i + 1).padStart(2, '0')}</span>
+              <span class="bl-title">{book.title}</span>
+              <span class="bl-author">{book.author}</span>
+              <span class={`bl-finished${isInProgress(book) ? ' in-progress' : ''}`}>
+                {formatFinished(book)}
+              </span>
+              <span class="bl-rating">{formatRating(book.rating)}</span>
+            </button>
+            {book.note && <div class="bl-note" hidden>{book.note}</div>}
+          </li>
+        ))}
+      </ul>
+    </div>
+
+    <div class="pager" data-pager>
+      <button data-first disabled>« first</button>
+      <button data-prev disabled>← newer</button>
+      <span>page <span data-page>1</span> of <span data-pages>{firstPage.pages}</span></span>
+      <button data-next>older →</button>
+      <button data-last>last »</button>
+    </div>
+  </div>
+
+  {/*
+    All 832 rows ship once as JSON (~20KB gzipped) and the island sorts and
+    paginates in the browser. Statically generating every sort x page
+    combination would be 126 HTML files for no benefit.
+  */}
+  <script type="application/json" id="book-data" set:html={JSON.stringify(books)} />
+</Base>
+
+<script>
+  import {
+    sortBooks, paginate, formatRating, formatFinished, isInProgress, PER_PAGE,
+  } from '../lib/books';
+  import type { Book, SortMode } from '../lib/books';
+
+  const raw = document.getElementById('book-data')?.textContent;
+  if (raw) {
+    const books: Book[] = JSON.parse(raw);
+    const rows = document.querySelector<HTMLElement>('[data-rows]')!;
+    const pageEl = document.querySelector<HTMLElement>('[data-page]')!;
+    const pagesEl = document.querySelector<HTMLElement>('[data-pages]')!;
+    const first = document.querySelector<HTMLButtonElement>('[data-first]')!;
+    const prev = document.querySelector<HTMLButtonElement>('[data-prev]')!;
+    const next = document.querySelector<HTMLButtonElement>('[data-next]')!;
+    const last = document.querySelector<HTMLButtonElement>('[data-last]')!;
+    const sortButtons = Array.from(document.querySelectorAll<HTMLButtonElement>('[data-sort]'));
+
+    let mode: SortMode = 'recent';
+    let page = 1;
+
+    const esc = (s: string) =>
+      s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+    function render() {
+      const sorted = sortBooks(books, mode);
+      const view = paginate(sorted, page);
+      page = view.page;
+
+      rows.innerHTML = view.items
+        .map((book, i) => {
+          const n = String((view.page - 1) * PER_PAGE + i + 1).padStart(2, '0');
+          const prog = isInProgress(book) ? ' in-progress' : '';
+          const note = book.note
+            ? `<div class="bl-note" hidden>${esc(book.note)}</div>`
+            : '';
+          return `<li data-book-row><button class="bl-row" data-toggle>
+            <span class="bl-n">${n}</span>
+            <span class="bl-title">${esc(book.title)}</span>
+            <span class="bl-author">${esc(book.author)}</span>
+            <span class="bl-finished${prog}">${esc(formatFinished(book))}</span>
+            <span class="bl-rating">${formatRating(book.rating)}</span>
+          </button>${note}</li>`;
+        })
+        .join('');
+
+      pageEl.textContent = String(view.page);
+      pagesEl.textContent = String(view.pages);
+      first.disabled = view.page === 1;
+      prev.disabled = view.page === 1;
+      next.disabled = view.page === view.pages;
+      last.disabled = view.page === view.pages;
+    }
+
+    const go = (n: number) => { page = n; render(); window.scrollTo({ top: 0 }); };
+    first.addEventListener('click', () => go(1));
+    prev.addEventListener('click', () => go(page - 1));
+    next.addEventListener('click', () => go(page + 1));
+    last.addEventListener('click', () => go(Number(pagesEl.textContent)));
+
+    sortButtons.forEach((btn) =>
+      btn.addEventListener('click', () => {
+        mode = btn.dataset.sort as SortMode;
+        sortButtons.forEach((b) => b.classList.toggle('on', b === btn));
+        go(1);
+      })
+    );
+
+    // One listener for every row, now and after each re-render.
+    rows.addEventListener('click', (e) => {
+      const button = (e.target as HTMLElement).closest('[data-toggle]');
+      const note = button?.parentElement?.querySelector<HTMLElement>('.bl-note');
+      if (note) note.hidden = !note.hidden;
+    });
+
+    render();
+  }
+</script>
+
+<style>
+  .head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 8px;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  .sorts {
+    display: flex;
+    gap: 4px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+  }
+  .sorts button {
+    background: none;
+    border: none;
+    padding: 4px 8px;
+    font: inherit;
+    letter-spacing: inherit;
+    text-transform: inherit;
+    color: var(--ink-faint);
+    border-bottom: 1px solid transparent;
+  }
+  .sorts button.on { color: var(--accent); border-bottom-color: var(--accent); }
+
+  .intro { font-size: 15px; color: var(--ink-soft); max-width: 52ch; margin: 0 0 36px; }
+  .stats {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin-left: 6px;
+  }
+
+  .booklog-head,
+  .booklog :global(.bl-row) {
+    display: grid;
+    grid-template-columns: 40px 1fr 1fr 110px 90px;
+    gap: 18px;
+    align-items: baseline;
+  }
+  .booklog-head {
+    font-family: var(--font-mono);
+    font-size: 9.5px;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--rule);
+  }
+  .booklog :global(ul) { list-style: none; padding: 0; margin: 0; }
+  .booklog :global(li) { border-bottom: 1px solid var(--rule); }
+  .booklog :global(.bl-row) {
+    width: 100%;
+    background: none;
+    border: none;
+    text-align: left;
+    padding: 14px 0;
+    font-family: inherit;
+    color: inherit;
+  }
+  .booklog :global(.bl-n) {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--ink-faint);
+    letter-spacing: 0.15em;
+  }
+  .booklog :global(.bl-title) {
+    font-family: var(--font-display);
+    font-style: italic;
+    font-size: 19px;
+    line-height: 1.2;
+    color: var(--ink);
+  }
+  .booklog :global(.bl-author) { font-size: 14px; color: var(--ink-soft); }
+  .booklog :global(.bl-finished) {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--ink-faint);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+  }
+  .booklog :global(.bl-finished.in-progress) { color: var(--accent); }
+  .booklog :global(.bl-rating) {
+    font-family: var(--font-display);
+    font-size: 15px;
+    color: var(--accent);
+    letter-spacing: 0.08em;
+  }
+  .booklog :global(.bl-note) {
+    padding: 0 0 16px 58px;
+    font-size: 14px;
+    color: var(--ink-soft);
+    line-height: 1.6;
+    max-width: 60ch;
+  }
+
+  .pager {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 18px;
+    margin-top: 32px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+  }
+  .pager button {
+    background: none;
+    border: 1px solid var(--rule);
+    padding: 6px 12px;
+    font: inherit;
+    letter-spacing: inherit;
+    text-transform: inherit;
+    color: var(--ink-soft);
+  }
+  .pager button:disabled { color: var(--rule); }
+
+  @media (max-width: 700px) {
+    .booklog-head :global(span):nth-child(3),
+    .booklog :global(.bl-author) { display: none; }
+    .booklog-head,
+    .booklog :global(.bl-row) { grid-template-columns: 32px 1fr 96px 80px; }
+  }
+</style>
