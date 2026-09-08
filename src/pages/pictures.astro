@@ -1,0 +1,79 @@
+---
+import { getCollection } from 'astro:content';
+import Base from '../layouts/Base.astro';
+
+const pictures = (await getCollection('pictures')).map((p) => p.data);
+---
+
+<Base title="pictures · my little paper sky" page="pictures">
+  <div class="page">
+    <div class="section-label"><span>pictures</span></div>
+    <h2 class="title-serif">an unhurried album</h2>
+    <p class="intro">
+      photographs i've taken on the way to other things. nothing posed.
+      nothing important. mostly the kitchen.
+    </p>
+
+    <div class="pic-cols">
+      {pictures.map((p, i) => (
+        <figure class="pic" style={`--rot: ${(((i * 37) % 100) - 50) / 60}deg;`}>
+          {p.image
+            ? <img src={p.image} alt={p.caption} style={`aspect-ratio: ${p.aspect}; width: 100%; object-fit: cover; display: block;`} />
+            : <div class="placeholder" style={`aspect-ratio: ${p.aspect}; width: 100%;`}>photo · {p.tag}</div>}
+          <figcaption>
+            <span class="cap">{p.caption}</span>
+            <span>{p.date}</span>
+          </figcaption>
+        </figure>
+      ))}
+    </div>
+  </div>
+</Base>
+
+<style>
+  .intro {
+    font-size: 15px;
+    color: var(--ink-soft);
+    max-width: 54ch;
+    margin: 0 0 36px;
+  }
+  .pic-cols { column-count: 3; column-gap: 18px; }
+  @media (max-width: 800px) { .pic-cols { column-count: 2; } }
+  @media (max-width: 500px) { .pic-cols { column-count: 1; } }
+
+  .pic {
+    margin: 0 0 22px;
+    break-inside: avoid;
+    display: inline-block;
+    width: 100%;
+    background: #fdfaf2;
+    padding: 10px 10px 8px;
+    border: 1px solid var(--rule);
+    box-shadow: 0 2px 0 rgba(80, 50, 20, 0.04);
+    transform: rotate(0);
+    transition: transform 0.4s, box-shadow 0.4s;
+    position: relative;
+  }
+  .pic:hover {
+    box-shadow: 0 14px 28px -14px rgba(80, 50, 20, 0.3);
+    transform: rotate(var(--rot)) translateY(-2px);
+  }
+  figcaption {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-top: 8px;
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+  }
+  .cap {
+    font-family: var(--font-hand);
+    font-size: 18px;
+    text-transform: none;
+    letter-spacing: 0;
+    color: var(--ink-soft);
+  }
+</style>

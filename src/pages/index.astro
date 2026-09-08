@@ -1,14 +1,71 @@
 ---
+import { getCollection, getEntry } from 'astro:content';
 import Base from '../layouts/Base.astro';
-import Placeholder from '../components/Placeholder.astro';
+import UpdateCard from '../components/UpdateCard.astro';
+
+const text = (await getEntry('settings', 'text'))?.data as Record<string, string>;
+
+// "What's new" is derived rather than hardcoded as it was in the prototype:
+// once Sahana publishes, the newest three have to appear here on their own.
+const byNewest = (a: { date: string }, b: { date: string }) =>
+  Date.parse(b.date) - Date.parse(a.date);
+
+const doodles = (await getCollection('doodles')).map((d) => d.data).sort(byNewest);
+const posts = (await getCollection('posts')).map((p) => p.data).sort(byNewest);
+const pictures = (await getCollection('pictures')).map((p) => p.data);
+
+const shortDate = (value: string) => {
+  const parsed = Date.parse(value);
+  if (Number.isNaN(parsed)) return value;
+  return new Date(parsed).toLocaleDateString('en-US', { month: 'short', day: '2-digit' });
+};
+
+const updates = [
+  doodles[0] && {
+    kind: 'doodle',
+    date: shortDate(doodles[0].date),
+    title: doodles[0].title,
+    note: doodles[0].note,
+    href: '/doodles',
+  },
+  posts[0] && {
+    kind: 'post',
+    date: shortDate(posts[0].date),
+    title: posts[0].title,
+    note: posts[0].excerpt,
+    href: '/blog',
+  },
+  pictures[0] && {
+    kind: 'picture',
+    date: pictures[0].date,
+    title: pictures[0].caption,
+    note: `tagged ${pictures[0].tag}`,
+    href: '/pictures',
+  },
+].filter(Boolean) as Array<{
+  kind: string; date: string; title: string; note: string; href: string;
+}>;
 ---
 
 <Base title="my little paper sky" page="home">
   <div class="page home">
     <section style="margin-top: 12px;">
-      <p class="greeting">shell check</p>
-      <p>Task 4 verification page — replaced by the real home page in Task 5.</p>
-      <Placeholder label="placeholder check" aspect="4/3" />
+      <p class="greeting">hi there!!</p>
+      <p class="intro">{text.homeIntro1}</p>
+      <p class="intro last">{text.homeIntro2}</p>
+      <div class="ctas">
+        <a class="btn accent" href="/doodles">see today's doodle →</a>
+        <a class="btn" href="/blog">read the blog</a>
+      </div>
+    </section>
+
+    <div class="aster">∿   ∿   ∿</div>
+
+    <section>
+      <div class="section-label"><span>what's new</span></div>
+      <div class="update-grid">
+        {updates.map((u, i) => <UpdateCard {...u} index={i} />)}
+      </div>
     </section>
   </div>
 </Base>
@@ -20,5 +77,19 @@ import Placeholder from '../components/Placeholder.astro';
     color: var(--accent);
     margin: 0 0 12px;
     line-height: 1.2;
+  }
+  .intro {
+    font-size: 16.5px;
+    line-height: 1.85;
+    max-width: 54ch;
+    margin: 0 0 18px;
+    color: var(--ink-soft);
+  }
+  .intro.last { margin-bottom: 28px; }
+  .ctas { display: flex; gap: 12px; flex-wrap: wrap; }
+  .update-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 24px;
   }
 </style>

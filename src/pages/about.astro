@@ -1,0 +1,106 @@
+---
+import { getEntry } from 'astro:content';
+import Base from '../layouts/Base.astro';
+
+const text = (await getEntry('settings', 'text'))?.data as Record<string, string>;
+// Same file the fixed widget reads, so the two can never disagree.
+const currently = (await getEntry('settings', 'currently'))?.data as Record<string, string>;
+
+const rows: Array<[string, string]> = [
+  ['reading', currently.reading],
+  ['drawing', currently.drawing],
+  ['listening', currently.listening],
+  ['watching', currently.watching],
+  ['learning', currently.learning],
+];
+---
+
+<Base title="about · my little paper sky" page="about">
+  <div class="page">
+    <div class="section-label"><span>about</span></div>
+    <h2 class="title-serif">a few things about me</h2>
+
+    <div class="about-grid">
+      <div class="bio">
+        <p>{text.aboutBio1}</p>
+        <p>{text.aboutBio2}</p>
+        <p>{text.aboutBio3}</p>
+        <p class="closing">{text.aboutBio4}</p>
+      </div>
+
+      <div class="polaroid">
+        <div class="tape" style="top: -10px; left: 50%; margin-left: -40px;"></div>
+        <div class="placeholder" style="aspect-ratio: 4/5; width: 100%;">a photo of me</div>
+        <div class="polaroid-caption">probably</div>
+      </div>
+    </div>
+
+    <div class="aster">∿</div>
+
+    <section style="margin-top: 40px;">
+      <div class="section-label"><span>currently</span></div>
+      <dl class="facts">
+        {rows.map(([key, value]) => (
+          <>
+            <dt>{key}</dt>
+            <dd>{value}</dd>
+          </>
+        ))}
+      </dl>
+    </section>
+  </div>
+</Base>
+
+<style>
+  .about-grid {
+    display: grid;
+    grid-template-columns: 1fr 200px;
+    gap: 40px;
+    align-items: start;
+  }
+  .bio { font-size: 15.5px; line-height: 1.75; color: var(--ink-soft); }
+  .bio p { margin: 0 0 14px; }
+  .bio .closing {
+    font-family: var(--font-hand);
+    font-size: 22px;
+    color: var(--accent);
+    margin: 18px 0 0;
+    line-height: 1.25;
+  }
+  .polaroid {
+    position: relative;
+    transform: rotate(2deg);
+    padding: 12px 12px 36px;
+    background: #fdfaf2;
+    box-shadow: 0 8px 22px -10px rgba(80, 50, 20, 0.3);
+    border: 1px solid var(--rule);
+  }
+  .polaroid-caption {
+    font-family: var(--font-hand);
+    font-size: 18px;
+    color: var(--ink-soft);
+    text-align: center;
+    margin-top: 8px;
+  }
+  .facts {
+    display: grid;
+    grid-template-columns: 120px 1fr;
+    row-gap: 14px;
+    column-gap: 24px;
+    margin: 0;
+    font-size: 15px;
+  }
+  .facts dt {
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    align-self: baseline;
+  }
+  .facts dd { margin: 0; color: var(--ink-soft); font-family: var(--font-body); }
+
+  @media (max-width: 700px) {
+    .about-grid { grid-template-columns: 1fr; }
+  }
+</style>
