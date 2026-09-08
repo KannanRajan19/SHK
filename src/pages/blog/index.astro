@@ -1,0 +1,60 @@
+---
+import { getCollection } from 'astro:content';
+import Base from '../../layouts/Base.astro';
+import PostCard from '../../components/PostCard.astro';
+
+const posts = (await getCollection('posts')).sort(
+  (a, b) => Date.parse(b.data.date) - Date.parse(a.data.date)
+);
+---
+
+<Base title="blog · my little paper sky" page="blog">
+  <div class="page">
+    <div class="section-label"><span>blog</span></div>
+    <div class="head">
+      <h2 class="title-serif" style="margin: 0;">small posts about small things</h2>
+      <div class="count">{posts.length} posts · since 2026</div>
+    </div>
+
+    {posts.length === 0 && (
+      <div class="placeholder" style="aspect-ratio: 3/1; width: 100%;">no posts yet</div>
+    )}
+
+    <div class="post-grid">
+      {posts.map((p, i) => (
+        <PostCard
+          title={p.data.title}
+          date={p.data.date}
+          tag={p.data.tag}
+          minutes={p.data.minutes}
+          excerpt={p.data.excerpt}
+          href={`/blog/${p.id}`}
+          index={i}
+        />
+      ))}
+    </div>
+  </div>
+</Base>
+
+<style>
+  .head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 28px;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  .count {
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    letter-spacing: 0.2em;
+    color: var(--ink-faint);
+    text-transform: uppercase;
+  }
+  .post-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 22px;
+  }
+</style>
