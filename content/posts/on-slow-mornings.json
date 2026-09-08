@@ -1,0 +1,25 @@
+{
+  "title": "on slow mornings",
+  "date": "Apr 28, 2026",
+  "tag": "thinking",
+  "minutes": 1,
+  "excerpt": "three hundred words about not rushing, and the case for a second cup of tea.",
+  "blocks": [
+    {
+      "type": "text",
+      "value": "i used to set an alarm for 6:15 and feel proud about it. now i wake up when the room is light enough to read in, and i stand by the window for a long time before i do anything else."
+    },
+    {
+      "type": "text",
+      "value": "this is not a productivity post. i don't think the morning belongs to productivity, actually. i think it belongs to looking at things — the sky, the cat, the bowl of fruit on the counter — and slowly remembering that you are a person."
+    },
+    {
+      "type": "text",
+      "value": "make the tea. let it steep too long. burn your tongue on the first sip and then forget about it for ten minutes. read one page of something. don't check your phone until after you've put on socks."
+    },
+    {
+      "type": "text",
+      "value": "the day will still be there. i promise."
+    }
+  ]
+}

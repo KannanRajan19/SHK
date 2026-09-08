@@ -1,0 +1,21 @@
+{
+  "title": "three small joys this week",
+  "date": "Mar 22, 2026",
+  "tag": "lists",
+  "minutes": 1,
+  "excerpt": "a list, in no particular order, of things that were good.",
+  "blocks": [
+    {
+      "type": "text",
+      "value": "1. a peach that tasted like a peach."
+    },
+    {
+      "type": "text",
+      "value": "2. the cat that lives at the bookshop, who deigned to sit on my lap for almost ten whole minutes."
+    },
+    {
+      "type": "text",
+      "value": "3. a stranger who held the door, and another stranger who held the door for them."
+    }
+  ]
+}
