@@ -1,0 +1,18 @@
+---
+/**
+ * The striped stand-in shown wherever a real image has not been supplied yet.
+ * Kept deliberately: the README asks that sections stay presentable while the
+ * owner adds photos incrementally, so this is the empty state, not a stub.
+ */
+interface Props {
+  label: string;
+  aspect?: string;
+  class?: string;
+}
+
+const { label, aspect = '4/3', class: className = '' } = Astro.props;
+---
+
+<div class:list={['placeholder', className]} style={`aspect-ratio: ${aspect};`}>
+  {label}
+</div>

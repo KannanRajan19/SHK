@@ -1,0 +1,24 @@
+---
+import Base from '../layouts/Base.astro';
+import Placeholder from '../components/Placeholder.astro';
+---
+
+<Base title="my little paper sky" page="home">
+  <div class="page home">
+    <section style="margin-top: 12px;">
+      <p class="greeting">shell check</p>
+      <p>Task 4 verification page — replaced by the real home page in Task 5.</p>
+      <Placeholder label="placeholder check" aspect="4/3" />
+    </section>
+  </div>
+</Base>
+
+<style>
+  .greeting {
+    font-family: var(--font-hand);
+    font-size: 26px;
+    color: var(--accent);
+    margin: 0 0 12px;
+    line-height: 1.2;
+  }
+</style>
