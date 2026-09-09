@@ -1,5 +1,5 @@
 import { requireSession, json } from '../lib/guard';
-import { putFile, safeUploadName } from '../lib/github';
+import { putFile, safeUploadName, GitHubError } from '../lib/github';
 
 interface Env {
   SESSION_SECRET?: string;
@@ -50,8 +50,9 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
       content: data,
       message: `content: upload ${name}`,
     });
-  } catch {
-    return json({ ok: false, error: 'could not upload' }, 502);
+  } catch (err) {
+    const detail = err instanceof GitHubError ? err.message : 'could not upload';
+    return json({ ok: false, error: detail }, 502);
   }
 
   // The public URL, which is where the page will read it from.

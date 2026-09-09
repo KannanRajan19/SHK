@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isAllowedPath, safeUploadName } from '../../functions/lib/github';
+import { isAllowedPath, safeUploadName, describeGitHubStatus } from '../../functions/lib/github';
 
 describe('isAllowedPath', () => {
   it('allows content and upload paths', () => {
@@ -52,5 +52,24 @@ describe('safeUploadName', () => {
     expect(safeUploadName('evil.svg', 1)).toBeNull();
     expect(safeUploadName('evil.html', 1)).toBeNull();
     expect(safeUploadName('noextension', 1)).toBeNull();
+  });
+});
+
+describe('describeGitHubStatus', () => {
+  it('names an expired token, the most likely failure a year out', () => {
+    expect(describeGitHubStatus(401)).toMatch(/expired/i);
+  });
+
+  it('distinguishes permission from expiry', () => {
+    expect(describeGitHubStatus(403)).toMatch(/permission/i);
+    expect(describeGitHubStatus(403)).not.toMatch(/expired/i);
+  });
+
+  it('points at the config variables when the repo is not found', () => {
+    expect(describeGitHubStatus(404)).toMatch(/GITHUB_REPO/);
+  });
+
+  it('falls back to the raw status for anything unrecognised', () => {
+    expect(describeGitHubStatus(500)).toBe('github returned 500');
   });
 });

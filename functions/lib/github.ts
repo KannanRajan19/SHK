@@ -70,7 +70,27 @@ export async function putFile({
     body: JSON.stringify({ message, content, branch, ...(sha ? { sha } : {}) }),
   });
 
-  if (!res.ok) throw new Error(`github ${res.status}`);
+  if (!res.ok) throw new GitHubError(res.status);
+}
+
+/**
+ * Carries the status so the caller can say something a non-technical owner can
+ * act on. An expired token is the single most likely failure a year from now,
+ * and "could not publish" gives no clue that the fix is regenerating it.
+ */
+export class GitHubError extends Error {
+  constructor(readonly status: number) {
+    super(describeGitHubStatus(status));
+  }
+}
+
+export function describeGitHubStatus(status: number): string {
+  if (status === 401) return 'the github token is invalid — it has probably expired';
+  if (status === 403) return 'the github token is missing write permission for this repo';
+  if (status === 404) return 'the repo or branch was not found — check GITHUB_REPO and GITHUB_BRANCH';
+  if (status === 409) return 'something else changed this file at the same time — try again';
+  if (status === 422) return 'github rejected the file contents';
+  return `github returned ${status}`;
 }
 
 /** UTF-8 safe base64: btoa alone mangles anything outside Latin-1. */

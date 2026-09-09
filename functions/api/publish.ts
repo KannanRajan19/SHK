@@ -1,5 +1,5 @@
 import { requireSession, json } from '../lib/guard';
-import { putFile, toBase64, isAllowedPath } from '../lib/github';
+import { putFile, toBase64, isAllowedPath, GitHubError } from '../lib/github';
 
 interface Env {
   SESSION_SECRET?: string;
@@ -55,9 +55,11 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
         message,
       });
     }
-  } catch {
-    // The GitHub error can name the repo and token scope; it stays server-side.
-    return json({ ok: false, error: 'could not publish' }, 502);
+  } catch (err) {
+    // Says what went wrong without echoing GitHub's body, which can name the
+    // repo and the token's scope.
+    const detail = err instanceof GitHubError ? err.message : 'could not publish';
+    return json({ ok: false, error: detail }, 502);
   }
 
   return json({ ok: true, files: files.length });
