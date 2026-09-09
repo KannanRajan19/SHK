@@ -1,0 +1,602 @@
+---
+import { getCollection, getEntry } from 'astro:content';
+import '../styles/global.css';
+import type { Book } from '../lib/books';
+
+// Current values are baked in at build time so the forms open pre-filled.
+// After a publish the site rebuilds and this page picks up the new values.
+const text = (await getEntry('settings', 'text'))?.data as Record<string, string>;
+const currently = (await getEntry('settings', 'currently'))?.data as Record<string, string>;
+const books = (await getCollection('books')).map((b) => b.data) as Book[];
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex,nofollow" />
+    <title>admin</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Special+Elite&family=Caveat:wght@400;600&family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <!-- Login -->
+    <div class="login-wrap" data-login>
+      <form class="login" data-login-form>
+        <div class="kicker">admin</div>
+        <h1>my little paper sky</h1>
+        <label for="pw">password</label>
+        <input id="pw" name="password" type="password" autofocus />
+        <div class="err" data-login-err></div>
+        <button type="submit" class="btn accent" style="width: 100%;">log in</button>
+      </form>
+    </div>
+
+    <!-- Dashboard -->
+    <div class="app dash" data-dash hidden>
+      <header class="dash-head">
+        <div>
+          <div class="kicker">admin</div>
+          <h1 class="dash-title">my little paper sky</h1>
+        </div>
+        <a class="btn" href="/">view site →</a>
+      </header>
+
+      <div class="status" data-status hidden></div>
+
+      <!-- 1. blog post with block composer -->
+      <section>
+        <h2>write a new blog post</h2>
+        <label class="f">title<input data-post-title type="text" /></label>
+        <label class="f">tag (optional)<input data-post-tag type="text" placeholder="thinking" /></label>
+
+        <div class="composer" data-blocks></div>
+
+        <div class="add-row">
+          <button class="btn" data-add-text>¶ paragraph</button>
+          <button class="btn" data-add-image>▣ picture</button>
+        </div>
+        <button class="btn accent" data-publish-post>publish post</button>
+      </section>
+
+      <!-- 2. doodle -->
+      <section>
+        <h2>add a doodle</h2>
+        <label class="f">title<input data-doodle-title type="text" /></label>
+        <label class="f">caption<textarea data-doodle-note></textarea></label>
+        <label class="f">image<input data-doodle-image type="file" accept="image/*" /></label>
+        <button class="btn accent" data-publish-doodle>add doodle</button>
+      </section>
+
+      <!-- 3. picture -->
+      <section>
+        <h2>add a picture</h2>
+        <label class="f">caption<input data-picture-caption type="text" /></label>
+        <label class="f">tag (optional)<input data-picture-tag type="text" /></label>
+        <label class="f">image<input data-picture-image type="file" accept="image/*" /></label>
+        <button class="btn accent" data-publish-picture>add picture</button>
+      </section>
+
+      <!-- 4. book -->
+      <section>
+        <h2>add a book</h2>
+        <label class="f">title<input data-book-title type="text" /></label>
+        <label class="f">author<input data-book-author type="text" /></label>
+        <label class="f">finished (leave blank if still reading)
+          <input data-book-finished type="text" placeholder="Sep 2026" /></label>
+        <label class="f">rating 0–5<input data-book-rating type="number" min="0" max="5" value="0" /></label>
+        <label class="f">note (optional)<textarea data-book-note></textarea></label>
+        <button class="btn accent" data-publish-book>add book</button>
+      </section>
+
+      <!-- 5. home & about text -->
+      <section>
+        <h2>home page</h2>
+        <label class="f">intro paragraph 1<textarea data-t="homeIntro1">{text.homeIntro1}</textarea></label>
+        <label class="f">intro paragraph 2<textarea data-t="homeIntro2">{text.homeIntro2}</textarea></label>
+
+        <h2 style="margin-top: 32px;">about bio</h2>
+        <label class="f">paragraph 1<textarea data-t="aboutBio1">{text.aboutBio1}</textarea></label>
+        <label class="f">paragraph 2<textarea data-t="aboutBio2">{text.aboutBio2}</textarea></label>
+        <label class="f">paragraph 3<textarea data-t="aboutBio3">{text.aboutBio3}</textarea></label>
+        <label class="f">closing line<textarea data-t="aboutBio4">{text.aboutBio4}</textarea></label>
+        <button class="btn accent" data-publish-text>save text</button>
+      </section>
+
+      <!-- 6. currently -->
+      <section>
+        <h2>currently widget</h2>
+        <label class="f">reading<input data-c="reading" type="text" value={currently.reading} /></label>
+        <label class="f">drawing<input data-c="drawing" type="text" value={currently.drawing} /></label>
+        <label class="f">listening<input data-c="listening" type="text" value={currently.listening} /></label>
+        <label class="f">watching<input data-c="watching" type="text" value={currently.watching} /></label>
+        <label class="f">learning<input data-c="learning" type="text" value={currently.learning} /></label>
+        <button class="btn accent" data-publish-currently>save currently</button>
+      </section>
+    </div>
+
+    <script type="application/json" id="book-data" set:html={JSON.stringify(books)} />
+
+    <script>
+      import { moveBlock, removeBlock } from '../scripts/admin/composer';
+      import { readingTime, deriveExcerpt } from '../lib/blocks';
+      import type { Block } from '../lib/blocks';
+
+      const $ = <T extends Element>(s: string) => document.querySelector<T>(s)!;
+      const login = $<HTMLElement>('[data-login]');
+      const dash = $<HTMLElement>('[data-dash]');
+      const status = $<HTMLElement>('[data-status]');
+
+      // ---- login ----
+      $<HTMLFormElement>('[data-login-form]').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const err = $<HTMLElement>('[data-login-err]');
+        err.textContent = '';
+        const password = $<HTMLInputElement>('#pw').value;
+        try {
+          const res = await fetch('/api/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ password }),
+          });
+          const data = await res.json();
+          if (!res.ok || !data.ok) {
+            err.textContent = data.error ?? 'wrong password, try again';
+            return;
+          }
+          login.hidden = true;
+          dash.hidden = false;
+        } catch {
+          err.textContent = "couldn't reach the server";
+        }
+      });
+
+      // ---- status ----
+      function say(message: string, kind: 'busy' | 'ok' | 'bad' = 'busy') {
+        status.hidden = false;
+        status.className = `status ${kind}`;
+        status.textContent = message;
+      }
+
+      // ---- image handling ----
+      /**
+       * Downscale in the browser before upload. A phone photo is several
+       * megabytes; committing those straight into git would bloat the repo
+       * within a few dozen pictures.
+       */
+      function downscale(file: File, max = 1600): Promise<{ data: string; name: string }> {
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onerror = () => reject(new Error('read failed'));
+          reader.onload = () => {
+            const img = new Image();
+            img.onerror = () => reject(new Error('not an image'));
+            img.onload = () => {
+              const scale = Math.min(1, max / Math.max(img.width, img.height));
+              const canvas = document.createElement('canvas');
+              canvas.width = Math.round(img.width * scale);
+              canvas.height = Math.round(img.height * scale);
+              canvas.getContext('2d')!.drawImage(img, 0, 0, canvas.width, canvas.height);
+              const url = canvas.toDataURL('image/jpeg', 0.85);
+              resolve({
+                data: url.split(',')[1],
+                name: file.name.replace(/\.[^.]+$/, '') + '.jpg',
+              });
+            };
+            img.src = reader.result as string;
+          };
+          reader.readAsDataURL(file);
+        });
+      }
+
+      async function upload(file: File): Promise<string> {
+        const { data, name } = await downscale(file);
+        const res = await fetch('/api/upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ filename: name, data }),
+        });
+        const body = await res.json();
+        if (!res.ok || !body.ok) throw new Error(body.error ?? 'upload failed');
+        return body.url as string;
+      }
+
+      async function publish(files: Array<{ path: string; json: unknown }>, message: string) {
+        const res = await fetch('/api/publish', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ files, message }),
+        });
+        const body = await res.json();
+        if (!res.ok || !body.ok) throw new Error(body.error ?? 'publish failed');
+      }
+
+      const slug = (s: string) =>
+        s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 60);
+
+      const today = () =>
+        new Date().toLocaleDateString('en-US', {
+          month: 'short', day: '2-digit', year: 'numeric',
+        });
+
+      /** Publishing commits to git and waits on a rebuild -- never claim it is live. */
+      async function run(label: string, work: () => Promise<void>) {
+        try {
+          say('publishing… this takes a minute or two', 'busy');
+          await work();
+          say(`${label} published. it will appear on the site in a minute or two.`, 'ok');
+        } catch (e) {
+          say(`couldn't publish: ${(e as Error).message}`, 'bad');
+        }
+      }
+
+      // ---- block composer ----
+      let blocks: Block[] = [{ type: 'text', value: '' }];
+      const blocksEl = $<HTMLElement>('[data-blocks]');
+
+      function renderBlocks() {
+        blocksEl.innerHTML = blocks
+          .map((b, i) => {
+            const controls = `<div class="bctl">
+              <button data-up="${i}" ${i === 0 ? 'disabled' : ''}>↑</button>
+              <button data-down="${i}" ${i === blocks.length - 1 ? 'disabled' : ''}>↓</button>
+              <button data-rm="${i}">✕</button>
+            </div>`;
+            if (b.type === 'text') {
+              return `<div class="block"><div class="bhead"><span>¶ paragraph</span>${controls}</div>
+                <textarea data-bt="${i}">${b.value.replace(/</g, '&lt;')}</textarea></div>`;
+            }
+            const preview = b.value
+              ? `<img class="bprev" src="${b.value}" alt="" />`
+              : `<input type="file" accept="image/*" data-bf="${i}" />`;
+            return `<div class="block"><div class="bhead"><span>▣ picture</span>${controls}</div>
+              ${preview}
+              <input type="text" placeholder="caption (optional)" data-bc="${i}"
+                value="${(b.caption ?? '').replace(/"/g, '&quot;')}" /></div>`;
+          })
+          .join('');
+      }
+
+      blocksEl.addEventListener('click', (e) => {
+        const el = e.target as HTMLElement;
+        const up = el.dataset.up, down = el.dataset.down, rm = el.dataset.rm;
+        if (up !== undefined) blocks = moveBlock(blocks, +up, +up - 1);
+        else if (down !== undefined) blocks = moveBlock(blocks, +down, +down + 1);
+        else if (rm !== undefined) blocks = removeBlock(blocks, +rm);
+        else return;
+        renderBlocks();
+      });
+
+      blocksEl.addEventListener('input', (e) => {
+        const el = e.target as HTMLInputElement | HTMLTextAreaElement;
+        if (el.dataset.bt !== undefined) {
+          const block = blocks[+el.dataset.bt];
+          if (block.type === 'text') block.value = el.value;
+        } else if (el.dataset.bc !== undefined) {
+          const block = blocks[+el.dataset.bc];
+          if (block.type === 'image') block.caption = el.value;
+        }
+      });
+
+      blocksEl.addEventListener('change', async (e) => {
+        const el = e.target as HTMLInputElement;
+        if (el.dataset.bf === undefined || !el.files?.[0]) return;
+        const i = +el.dataset.bf;
+        try {
+          say('uploading picture…', 'busy');
+          const url = await upload(el.files[0]);
+          const block = blocks[i];
+          if (block.type === 'image') block.value = url;
+          renderBlocks();
+          say('picture added.', 'ok');
+        } catch (err) {
+          say(`couldn't upload: ${(err as Error).message}`, 'bad');
+        }
+      });
+
+      $<HTMLButtonElement>('[data-add-text]').addEventListener('click', () => {
+        blocks = [...blocks, { type: 'text', value: '' }];
+        renderBlocks();
+      });
+      $<HTMLButtonElement>('[data-add-image]').addEventListener('click', () => {
+        blocks = [...blocks, { type: 'image', value: '', caption: '' }];
+        renderBlocks();
+      });
+      renderBlocks();
+
+      // ---- publish handlers ----
+      $<HTMLButtonElement>('[data-publish-post]').addEventListener('click', () =>
+        run('post', async () => {
+          const title = $<HTMLInputElement>('[data-post-title]').value.trim();
+          if (!title) throw new Error('the post needs a title');
+          const filled = blocks.filter(
+            (b) => (b.type === 'text' ? b.value.trim() : b.value) !== ''
+          );
+          if (filled.length === 0) throw new Error('the post is empty');
+          await publish(
+            [{
+              path: `content/posts/${slug(title)}.json`,
+              json: {
+                title,
+                date: today(),
+                tag: $<HTMLInputElement>('[data-post-tag]').value.trim(),
+                minutes: readingTime(filled),
+                excerpt: deriveExcerpt(filled),
+                blocks: filled,
+              },
+            }],
+            `content: add post "${title}"`
+          );
+          blocks = [{ type: 'text', value: '' }];
+          renderBlocks();
+          $<HTMLInputElement>('[data-post-title]').value = '';
+        })
+      );
+
+      $<HTMLButtonElement>('[data-publish-doodle]').addEventListener('click', () =>
+        run('doodle', async () => {
+          const title = $<HTMLInputElement>('[data-doodle-title]').value.trim();
+          if (!title) throw new Error('the doodle needs a title');
+          const file = $<HTMLInputElement>('[data-doodle-image]').files?.[0];
+          const image = file ? await upload(file) : '';
+          await publish(
+            [{
+              path: `content/doodles/${slug(title)}.json`,
+              json: {
+                title,
+                date: today(),
+                note: $<HTMLTextAreaElement>('[data-doodle-note]').value.trim(),
+                image,
+                placeholder: 'doodle',
+              },
+            }],
+            `content: add doodle "${title}"`
+          );
+        })
+      );
+
+      $<HTMLButtonElement>('[data-publish-picture]').addEventListener('click', () =>
+        run('picture', async () => {
+          const caption = $<HTMLInputElement>('[data-picture-caption]').value.trim();
+          if (!caption) throw new Error('the picture needs a caption');
+          const file = $<HTMLInputElement>('[data-picture-image]').files?.[0];
+          const image = file ? await upload(file) : '';
+          await publish(
+            [{
+              path: `content/pictures/${Date.now()}-${slug(caption)}.json`,
+              json: {
+                caption,
+                date: today(),
+                tag: $<HTMLInputElement>('[data-picture-tag]').value.trim(),
+                aspect: '4/3',
+                image,
+              },
+            }],
+            `content: add picture "${caption}"`
+          );
+        })
+      );
+
+      $<HTMLButtonElement>('[data-publish-book]').addEventListener('click', () =>
+        run('book', async () => {
+          const title = $<HTMLInputElement>('[data-book-title]').value.trim();
+          const author = $<HTMLInputElement>('[data-book-author]').value.trim();
+          if (!title || !author) throw new Error('a book needs a title and an author');
+
+          const raw = document.getElementById('book-data')?.textContent ?? '[]';
+          const existing = JSON.parse(raw);
+          // New entries go to the top; the rest of the log is untouched.
+          existing.unshift({
+            title: title.toLowerCase(),
+            author: author.toLowerCase(),
+            finished: $<HTMLInputElement>('[data-book-finished]').value.trim(),
+            rating: Number($<HTMLInputElement>('[data-book-rating]').value) || 0,
+            note: $<HTMLTextAreaElement>('[data-book-note]').value.trim().toLowerCase(),
+          });
+          await publish(
+            [{ path: 'content/books.json', json: existing }],
+            `content: add book "${title}"`
+          );
+        })
+      );
+
+      $<HTMLButtonElement>('[data-publish-text]').addEventListener('click', () =>
+        run('text', async () => {
+          const json: Record<string, string> = {};
+          document.querySelectorAll<HTMLTextAreaElement>('[data-t]').forEach((el) => {
+            json[el.dataset.t!] = el.value.trim();
+          });
+          await publish(
+            [{ path: 'content/settings/text.json', json }],
+            'content: update home and about text'
+          );
+        })
+      );
+
+      $<HTMLButtonElement>('[data-publish-currently]').addEventListener('click', () =>
+        run('currently', async () => {
+          const json: Record<string, string> = {};
+          document.querySelectorAll<HTMLInputElement>('[data-c]').forEach((el) => {
+            json[el.dataset.c!] = el.value.trim();
+          });
+          await publish(
+            [{ path: 'content/settings/currently.json', json }],
+            'content: update currently widget'
+          );
+        })
+      );
+    </script>
+
+    <style is:global>
+      .login-wrap {
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+      }
+      .login {
+        background: var(--paper-deep);
+        border: 1px solid var(--rule);
+        padding: 40px 36px;
+        max-width: 340px;
+        width: 100%;
+      }
+      .kicker {
+        font-family: var(--font-mono);
+        font-size: 10px;
+        letter-spacing: 0.25em;
+        text-transform: uppercase;
+        color: var(--ink-faint);
+        margin-bottom: 8px;
+      }
+      .login h1,
+      .dash-title {
+        font-family: var(--font-display);
+        font-style: italic;
+        font-weight: 500;
+        font-size: 30px;
+        margin: 0 0 22px;
+        color: var(--ink);
+      }
+      .dash-title { margin: 0; }
+      .login label {
+        display: block;
+        font-family: var(--font-mono);
+        font-size: 11px;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--ink-faint);
+        margin-bottom: 6px;
+      }
+      .login input {
+        width: 100%;
+        box-sizing: border-box;
+        font-family: var(--font-body);
+        font-size: 16px;
+        padding: 10px 4px;
+        border: none;
+        border-bottom: 1px solid var(--rule);
+        background: transparent;
+        color: var(--ink);
+        outline: none;
+        margin-bottom: 18px;
+      }
+      .err { color: var(--accent); font-size: 13px; margin-bottom: 14px; min-height: 1em; }
+
+      .dash { max-width: 720px; }
+      .dash-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 16px;
+        padding-bottom: 20px;
+        border-bottom: 1px solid var(--rule);
+        margin-bottom: 8px;
+      }
+      .dash section {
+        padding: 28px 0;
+        border-bottom: 1px solid var(--rule);
+      }
+      .dash h2 {
+        font-family: var(--font-mono);
+        font-size: 12px;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+        color: var(--accent);
+        margin: 0 0 16px;
+      }
+      .f {
+        display: block;
+        font-family: var(--font-mono);
+        font-size: 10px;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+        color: var(--ink-faint);
+        margin-bottom: 16px;
+      }
+      .f input,
+      .f textarea {
+        display: block;
+        width: 100%;
+        box-sizing: border-box;
+        margin-top: 6px;
+        font-family: var(--font-body);
+        font-size: 15px;
+        letter-spacing: normal;
+        text-transform: none;
+        color: var(--ink);
+        background: transparent;
+        border: none;
+        border-bottom: 1px solid var(--rule);
+        padding: 8px 2px;
+        outline: none;
+      }
+      .f textarea { min-height: 80px; resize: vertical; }
+      .f input:focus,
+      .f textarea:focus { border-bottom-color: var(--accent); }
+
+      .composer { display: grid; gap: 14px; margin-bottom: 14px; }
+      .block { border: 1px solid var(--rule); padding: 12px 14px; background: var(--paper); }
+      .bhead {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-family: var(--font-mono);
+        font-size: 10px;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+        color: var(--ink-faint);
+        margin-bottom: 8px;
+      }
+      .bctl { display: flex; gap: 4px; }
+      .bctl button {
+        background: none;
+        border: 1px solid var(--rule);
+        color: var(--ink-soft);
+        padding: 2px 8px;
+        font-family: var(--font-mono);
+        font-size: 12px;
+        line-height: 1.4;
+      }
+      .bctl button:disabled { color: var(--rule); }
+      .block textarea,
+      .block input[type='text'] {
+        width: 100%;
+        box-sizing: border-box;
+        font-family: var(--font-body);
+        font-size: 15px;
+        border: none;
+        border-bottom: 1px solid var(--rule);
+        background: transparent;
+        color: var(--ink);
+        padding: 6px 2px;
+        outline: none;
+      }
+      .block textarea { min-height: 90px; resize: vertical; }
+      .bprev { width: 100%; display: block; border: 1px solid var(--rule); margin-bottom: 8px; }
+      .add-row { display: flex; gap: 10px; margin-bottom: 18px; }
+
+      .status {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        padding: 12px 16px;
+        margin: 16px 0;
+        font-family: var(--font-mono);
+        font-size: 11px;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        border: 1px solid var(--rule);
+        background: var(--paper-deep);
+      }
+      .status.ok { border-color: var(--accent); color: var(--accent); }
+      .status.bad { border-color: var(--accent); color: var(--accent); background: var(--paper); }
+    </style>
+  </body>
+</html>
