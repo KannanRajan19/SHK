@@ -60,7 +60,8 @@ function timingSafeEqual(a: string, b: string): boolean {
 }
 
 /**
- * PBKDF2 with 150k iterations. The password is never stored anywhere, in any
+ * PBKDF2 with 100k iterations (the maximum the Workers runtime allows;
+ * higher values throw at runtime, not at build time). The password is never stored anywhere, in any
  * form the browser can see -- only this hash lives as a Pages secret.
  */
 export async function hashPassword(pw: string, salt: string): Promise<string> {
@@ -68,7 +69,7 @@ export async function hashPassword(pw: string, salt: string): Promise<string> {
     'deriveBits',
   ]);
   const bits = await crypto.subtle.deriveBits(
-    { name: 'PBKDF2', salt: enc.encode(salt), iterations: 150_000, hash: 'SHA-256' },
+    { name: 'PBKDF2', salt: enc.encode(salt), iterations: 100_000, hash: 'SHA-256' },
     material,
     256
   );

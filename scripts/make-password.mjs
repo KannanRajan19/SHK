@@ -33,7 +33,7 @@ const material = await crypto.subtle.importKey('raw', enc.encode(password), 'PBK
   'deriveBits',
 ]);
 const bits = await crypto.subtle.deriveBits(
-  { name: 'PBKDF2', salt: enc.encode(salt), iterations: 150_000, hash: 'SHA-256' },
+  { name: 'PBKDF2', salt: enc.encode(salt), iterations: 100_000, hash: 'SHA-256' },
   material,
   256
 );

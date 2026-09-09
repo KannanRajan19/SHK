@@ -44,7 +44,16 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     return json({ ok: false }, 400);
   }
 
-  const hash = await hashPassword(password, env.ADMIN_PASSWORD_SALT);
+  let hash: string;
+  try {
+    hash = await hashPassword(password, env.ADMIN_PASSWORD_SALT);
+  } catch {
+    // An uncaught throw here surfaces as Cloudflare error 1101, which tells
+    // nobody anything. The realistic cause is the runtime rejecting the
+    // crypto parameters -- something a local Node test will not reproduce.
+    return json({ ok: false, error: 'could not check the password' }, 500);
+  }
+
   if (hash !== env.ADMIN_PASSWORD_HASH) {
     attempts.set(ip, {
       n: (record && record.until > now ? record.n : 0) + 1,
