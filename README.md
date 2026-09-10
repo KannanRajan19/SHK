@@ -55,11 +55,21 @@ optional and enables one extra feature each.
 
 ### Enabling the admin
 
-Generate the secrets:
+Generate the secrets — run it with no argument so it prompts, keeping the
+password out of your shell (and out of shell history):
 
 ```bash
-node scripts/make-password.mjs "the password you want"
+node scripts/make-password.mjs
 ```
+
+Before pasting anything, confirm the pair is right. Cloudflare's encrypted
+variables are write-only, so this is the only chance to check them:
+
+```bash
+node scripts/make-password.mjs --verify <salt> <hash>
+```
+
+It should print `MATCH`.
 
 Add its three outputs as **encrypted** environment variables in
 Cloudflare Pages → Settings → Environment variables:
@@ -79,7 +89,12 @@ That way the worst a leaked token could do is post to this one site.
 
 The password itself is never stored — only its hash — so it cannot be
 recovered. Keep it somewhere safe. To change it, re-run the script and update
-the two `ADMIN_PASSWORD_*` variables.
+the two `ADMIN_PASSWORD_*` variables **together**: every run makes a new random
+salt, so a hash from one run will not verify against a salt from another.
+
+**Environment variables only take effect on a new build.** Saving them in the
+dashboard does nothing on its own — push a commit, or create a deployment, and
+check `/version.json` to confirm which commit is actually live.
 
 ### Enabling the contact form
 
