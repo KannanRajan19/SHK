@@ -33,7 +33,14 @@ const books = (await getCollection('books')).map((b) => b.data) as Book[];
         <label for="pw">password</label>
         <input id="pw" name="password" type="password" autofocus />
         <div class="err" data-login-err></div>
-        <button type="submit" class="btn accent" style="width: 100%;">log in</button>
+        <!--
+          Disabled until the script attaches. If JavaScript never runs, the
+          button stays visibly stuck instead of silently doing nothing when
+          clicked -- which is indistinguishable from a rejected password.
+        -->
+        <button type="submit" class="btn accent" style="width: 100%;" data-login-btn disabled>
+          loading&hellip;
+        </button>
       </form>
     </div>
 
@@ -133,6 +140,13 @@ const books = (await getCollection('books')).map((b) => b.data) as Book[];
       const status = $<HTMLElement>('[data-status]');
 
       // ---- login ----
+      // Enabling the button is proof the module loaded and ran. If it stays
+      // on "loading..." the script failed, which is a different problem from
+      // a wrong password and should not look the same.
+      const loginBtn = $<HTMLButtonElement>('[data-login-btn]');
+      loginBtn.disabled = false;
+      loginBtn.textContent = 'log in';
+
       $<HTMLFormElement>('[data-login-form]').addEventListener('submit', async (e) => {
         e.preventDefault();
         const err = $<HTMLElement>('[data-login-err]');
