@@ -1,8 +1,9 @@
 /**
  * Generates — or verifies — the admin secrets.
  *
- *   node scripts/make-password.mjs 'the password you want'
- *   node scripts/make-password.mjs --verify <salt> <hash> 'the password'
+ *   node scripts/make-password.mjs                 (prompts, no shell involved)
+ *   node scripts/make-password.mjs 'the password'   (argument form)
+ *   node scripts/make-password.mjs --verify <salt> <hash>
  *
  * Generate prints ADMIN_PASSWORD_SALT, ADMIN_PASSWORD_HASH and SESSION_SECRET
  * to paste into Cloudflare as encrypted environment variables.
@@ -33,14 +34,43 @@ async function derive(password, salt) {
   return hex(bits);
 }
 
+/**
+ * Reads a password straight from the terminal, with no shell in between.
+ *
+ * Passing the password as an argument means the shell gets to rewrite it
+ * first — PowerShell expands $variables inside double quotes — and it also
+ * leaves the password in shell history. Typing it here avoids both.
+ */
+async function promptHidden(question) {
+  const readline = await import('node:readline');
+  return new Promise((resolve) => {
+    const rl = readline.createInterface({
+      input: process.stdin,
+      output: process.stdout,
+      terminal: true,
+    });
+    // Echo asterisks instead of the password.
+    rl._writeToOutput = (chunk) => {
+      if (chunk.includes(question)) rl.output.write(chunk);
+      else if (chunk.trim() !== '') rl.output.write('*');
+    };
+    rl.question(question, (answer) => {
+      rl.output.write('\n');
+      rl.close();
+      resolve(answer);
+    });
+  });
+}
+
 const args = process.argv.slice(2);
 
 if (args[0] === '--verify') {
-  const [, salt, expected, password] = args;
-  if (!salt || !expected || !password) {
-    console.error("usage: node scripts/make-password.mjs --verify <salt> <hash> 'the password'");
+  const [, salt, expected] = args;
+  if (!salt || !expected) {
+    console.error('usage: node scripts/make-password.mjs --verify <salt> <hash>');
     process.exit(1);
   }
+  const password = args[3] ?? (await promptHidden('password to check: '));
 
   const actual = await derive(password, salt.trim());
   const match = actual === expected.trim().toLowerCase();
@@ -66,10 +96,10 @@ if (args[0] === '--verify') {
   process.exit(match ? 0 : 1);
 }
 
-const password = args[0];
+const password = args[0] ?? (await promptHidden('choose the admin password: '));
 
 if (!password) {
-  console.error("usage: node scripts/make-password.mjs 'your password'");
+  console.error('no password entered.');
   process.exit(1);
 }
 
