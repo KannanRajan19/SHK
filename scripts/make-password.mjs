@@ -81,6 +81,26 @@ if (password.length < 8) {
 const salt = hex(crypto.getRandomValues(new Uint8Array(16)));
 const sessionSecret = hex(crypto.getRandomValues(new Uint8Array(32)));
 
+/*
+ * Echo back what Node actually received, masked.
+ *
+ * A shell can rewrite the password before Node sees it — PowerShell expands
+ * $variables inside double quotes, so "my$secret" arrives as "my". The hash is
+ * then perfectly valid for a string the owner never chose, and the only
+ * symptom is "wrong password" weeks later. Showing the length and the ends
+ * makes that visible immediately without printing the password.
+ */
+const masked =
+  password.length <= 4
+    ? '*'.repeat(password.length)
+    : `${password.slice(0, 2)}${'*'.repeat(password.length - 4)}${password.slice(-2)}`;
+
+console.log(`
+Received a ${password.length}-character password: ${masked}
+  If that length or those first/last characters are not what you typed, your
+  shell rewrote it. In PowerShell use SINGLE quotes, then run this again.
+`);
+
 console.log(`
 Add these as encrypted environment variables in
 Cloudflare Pages -> Settings -> Variables and Secrets (Production):
