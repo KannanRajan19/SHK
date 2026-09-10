@@ -144,15 +144,33 @@ const books = (await getCollection('books')).map((b) => b.data) as Book[];
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ password }),
           });
-          const data = await res.json();
-          if (!res.ok || !data.ok) {
-            err.textContent = data.error ?? 'wrong password, try again';
+          // Read as text first: a non-JSON body (an HTML error page, an empty
+          // 500) would make res.json() throw, and the catch below would then
+          // blame the network for what is really a server fault.
+          const raw = await res.text();
+          let data: { ok?: boolean; error?: string } = {};
+          try {
+            data = JSON.parse(raw);
+          } catch {
+            err.textContent = `unexpected reply from the server (${res.status})`;
             return;
           }
+
+          if (!res.ok || !data.ok) {
+            err.textContent = data.error ?? `login failed (${res.status})`;
+            return;
+          }
+
           login.hidden = true;
           dash.hidden = false;
-        } catch {
-          err.textContent = "couldn't reach the server";
+
+          // If the dashboard somehow stays hidden, say so rather than leaving
+          // a blank screen and no explanation.
+          if (dash.hidden || login.hidden === false) {
+            err.textContent = 'logged in, but the dashboard failed to open';
+          }
+        } catch (e) {
+          err.textContent = `couldn't reach the server: ${(e as Error).message}`;
         }
       });
 
