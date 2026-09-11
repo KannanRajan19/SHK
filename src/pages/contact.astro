@@ -1,5 +1,5 @@
 ---
-import { getCollection } from 'astro:content';
+import { getCollection, getEntry } from 'astro:content';
 import Base from '../layouts/Base.astro';
 import { visibleSocials } from '../lib/socials';
 import type { Social } from '../lib/socials';
@@ -9,6 +9,15 @@ import type { Social } from '../lib/socials';
 const socials = visibleSocials(
   (await getCollection('socials')).map((s) => s.data) as Social[]
 );
+
+/*
+ * An address to fall back to when the form cannot send. Deliberately NOT the
+ * address messages are delivered to -- that is a Cloudflare secret and belongs
+ * nowhere near a public page. Blank by default: naming no address is better
+ * than naming one nobody reads.
+ */
+const site = (await getEntry('settings', 'site'))?.data as Record<string, string>;
+const publicEmail = (site?.publicEmail ?? '').trim();
 ---
 
 <Base title="contact · my little paper sky" page="contact">
@@ -44,6 +53,7 @@ const socials = visibleSocials(
             <button type="submit" class="btn accent">send letter →</button>
           </div>
           <p class="form-error" data-form-error hidden></p>
+          <span hidden data-fallback-email={publicEmail}></span>
         </form>
 
         <div class="sent" data-sent hidden>
@@ -120,8 +130,11 @@ const socials = visibleSocials(
       sent.hidden = false;
     } catch {
       // Never claim a message was sent when it was not.
-      formError.textContent =
-        "sorry — the letter didn't go through. you can reach me at hello@papersky.cafe instead.";
+      const fallback =
+        document.querySelector<HTMLElement>('[data-fallback-email]')?.dataset.fallbackEmail ?? '';
+      formError.textContent = fallback
+        ? `sorry — the letter didn't go through. you can reach me at ${fallback} instead.`
+        : "sorry — the letter didn't go through just now. please try again in a little while.";
       formError.hidden = false;
     } finally {
       button.disabled = false;
