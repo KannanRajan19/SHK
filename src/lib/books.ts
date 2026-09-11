@@ -6,7 +6,35 @@ export type Book = {
   note: string;
 };
 
-export type SortMode = 'recent' | 'rating' | 'author';
+export type SortMode = 'date' | 'rating' | 'author';
+export type SortDirection = 'asc' | 'desc';
+
+const MONTHS = [
+  'jan', 'feb', 'mar', 'apr', 'may', 'jun',
+  'jul', 'aug', 'sep', 'oct', 'nov', 'dec',
+];
+
+/**
+ * A sortable number for a "Mon YYYY" finished date.
+ *
+ * Parsed by hand rather than with Date.parse: that format is not in the spec's
+ * required set, so engines differ on it, and a NaN here would quietly scramble
+ * the ordering rather than fail loudly. Anything unrecognised sorts to the
+ * bottom instead of poisoning the comparison.
+ *
+ * A book still being read has no finished date, so it sorts above everything
+ * completed -- it is the most current thing in the log.
+ */
+export function finishedOrder(book: Book): number {
+  if (isInProgress(book)) return Number.MAX_SAFE_INTEGER;
+
+  const parts = book.finished.trim().toLowerCase().split(/\s+/);
+  const month = MONTHS.indexOf(parts[0]?.slice(0, 3) ?? '');
+  const year = Number(parts[1]);
+
+  if (!Number.isFinite(year)) return -1;
+  return year * 12 + (month >= 0 ? month : 0);
+}
 
 export const PER_PAGE = 20;
 
@@ -41,15 +69,23 @@ export function averageRating(books: Book[]): number | null {
   return rated.reduce((n, b) => n + b.rating, 0) / rated.length;
 }
 
-export function sortBooks(books: Book[], mode: SortMode): Book[] {
+/**
+ * `direction` defaults to the reading most people want first: newest books,
+ * highest ratings, authors from A. Passing the opposite reverses it.
+ */
+export function sortBooks(
+  books: Book[],
+  mode: SortMode,
+  direction: SortDirection = mode === 'author' ? 'asc' : 'desc'
+): Book[] {
   const list = [...books];
-  if (mode === 'recent') {
-    // books.json is already newest-first, so "recent" must not re-sort it.
-    // The only adjustment is lifting anything still in progress to the top.
-    return [...list.filter(isInProgress), ...list.filter((b) => !isInProgress(b))];
+  const flip = (n: number) => (direction === 'asc' ? -n : n);
+
+  if (mode === 'rating') return list.sort((a, b) => flip(b.rating - a.rating));
+  if (mode === 'author') {
+    return list.sort((a, b) => flip(b.author.localeCompare(a.author)));
   }
-  if (mode === 'rating') return list.sort((a, b) => b.rating - a.rating);
-  return list.sort((a, b) => a.author.localeCompare(b.author));
+  return list.sort((a, b) => flip(finishedOrder(b) - finishedOrder(a)));
 }
 
 export function paginate<T>(items: T[], page: number, per = PER_PAGE) {

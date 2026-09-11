@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   sortBooks, paginate, formatRating, isInProgress, averageRating, formatFinished,
-  filterBooks,
+  filterBooks, finishedOrder,
 } from '../../src/lib/books';
 import type { Book } from '../../src/lib/books';
 
@@ -137,5 +137,62 @@ describe('filterBooks', () => {
     const copy = structuredClone(list);
     filterBooks(list, 'dune');
     expect(list).toEqual(copy);
+  });
+});
+
+describe('finishedOrder', () => {
+  it('orders months within a year', () => {
+    expect(finishedOrder(b({ finished: 'Mar 2024' })))
+      .toBeLessThan(finishedOrder(b({ finished: 'Apr 2024' })));
+  });
+
+  it('orders across years', () => {
+    expect(finishedOrder(b({ finished: 'Dec 2023' })))
+      .toBeLessThan(finishedOrder(b({ finished: 'Jan 2024' })));
+  });
+
+  it('sorts in-progress books above everything finished', () => {
+    expect(finishedOrder(b({ finished: '' })))
+      .toBeGreaterThan(finishedOrder(b({ finished: 'Jul 2026' })));
+  });
+
+  it('is case and spacing tolerant', () => {
+    expect(finishedOrder(b({ finished: 'jul 2026' })))
+      .toBe(finishedOrder(b({ finished: '  Jul   2026 ' })));
+  });
+
+  it('does not rely on Date.parse, which need not support this format', () => {
+    // A year alone, or an unknown month, must not become NaN and scramble the sort.
+    expect(Number.isFinite(finishedOrder(b({ finished: 'Smarch 2024' })))).toBe(true);
+    expect(Number.isFinite(finishedOrder(b({ finished: 'nonsense' })))).toBe(true);
+  });
+});
+
+describe('sortBooks by date', () => {
+  const list = [
+    b({ title: 'mid', finished: 'Jun 2024' }),
+    b({ title: 'oldest', finished: 'Jan 2020' }),
+    b({ title: 'newest', finished: 'Dec 2026' }),
+    b({ title: 'reading', finished: '' }),
+  ];
+
+  it('puts newest first by default, with in-progress above all', () => {
+    expect(sortBooks(list, 'date').map((x) => x.title))
+      .toEqual(['reading', 'newest', 'mid', 'oldest']);
+  });
+
+  it('reverses to oldest first', () => {
+    expect(sortBooks(list, 'date', 'asc').map((x) => x.title))
+      .toEqual(['oldest', 'mid', 'newest', 'reading']);
+  });
+
+  it('reverses author order too', () => {
+    const names = [b({ author: 'ada' }), b({ author: 'zadie' })];
+    expect(sortBooks(names, 'author', 'desc').map((x) => x.author)).toEqual(['zadie', 'ada']);
+  });
+
+  it('reverses rating order too', () => {
+    const rated = [b({ rating: 5 }), b({ rating: 1 })];
+    expect(sortBooks(rated, 'rating', 'asc').map((x) => x.rating)).toEqual([1, 5]);
   });
 });

@@ -10,7 +10,7 @@ import type { Book } from '../lib/books';
 // Collection order is insertion order, which is books.json order: newest first.
 const books = (await getCollection('books')).map((b) => b.data) as Book[];
 
-const sorted = sortBooks(books, 'recent');
+const sorted = sortBooks(books, 'date');
 const firstPage = paginate(sorted, 1);
 const avg = averageRating(books);
 const finishedCount = books.filter((b) => !isInProgress(b)).length;
@@ -23,9 +23,9 @@ const finishedCount = books.filter((b) => !isInProgress(b)).length;
     <div class="head">
       <h2 class="title-serif" style="margin: 0;">everything i've read</h2>
       <div class="sorts">
-        <button data-sort="recent" class="on">recent</button>
-        <button data-sort="rating">rating</button>
-        <button data-sort="author">author</button>
+        <button data-sort="date" class="on">date <span class="arrow" data-arrow>↓</span></button>
+        <button data-sort="rating">rating <span class="arrow" data-arrow>↓</span></button>
+        <button data-sort="author">author <span class="arrow" data-arrow>↑</span></button>
       </div>
     </div>
 
@@ -46,9 +46,9 @@ const finishedCount = books.filter((b) => !isInProgress(b)).length;
         placeholder="look for a title or an author…"
         autocomplete="off"
       />
+      <span class="search-count" data-search-result hidden></span>
       <button type="button" class="search-clear" data-search-clear hidden>clear</button>
     </form>
-    <p class="search-result" data-search-result hidden></p>
 
     <div class="booklog">
       <div class="booklog-head">
@@ -117,7 +117,12 @@ const finishedCount = books.filter((b) => !isInProgress(b)).length;
     const last = document.querySelector<HTMLButtonElement>('[data-last]')!;
     const sortButtons = Array.from(document.querySelectorAll<HTMLButtonElement>('[data-sort]'));
 
-    let mode: SortMode = 'recent';
+    let mode: SortMode = 'date';
+    // Each sort remembers its own direction, so switching away and back does
+    // not silently reset what the reader chose.
+    const directions: Record<SortMode, 'asc' | 'desc'> = {
+      date: 'desc', rating: 'desc', author: 'asc',
+    };
     let page = 1;
     let query = '';
 
@@ -138,7 +143,7 @@ const finishedCount = books.filter((b) => !isInProgress(b)).length;
       // Search narrows the log first; sorting and paging then apply to
       // whatever is left, so results stay sorted and never span stale pages.
       const matched = filterBooks(books, query);
-      const sorted = sortBooks(matched, mode);
+      const sorted = sortBooks(matched, mode, directions[mode]);
       const view = paginate(sorted, page);
       page = view.page;
 
@@ -148,8 +153,8 @@ const finishedCount = books.filter((b) => !isInProgress(b)).length;
       if (searching) {
         resultEl.textContent =
           matched.length === 0
-            ? `nothing found for "${query.trim()}"`
-            : `${matched.length} ${matched.length === 1 ? 'book' : 'books'} found`;
+            ? 'nothing found'
+            : `${matched.length} ${matched.length === 1 ? 'book' : 'books'}`;
       }
       // A single page of results needs no pager.
       pagerEl.hidden = view.pages <= 1;
@@ -219,13 +224,31 @@ const finishedCount = books.filter((b) => !isInProgress(b)).length;
       searchEl.focus();
     });
 
+    function paintArrows() {
+      sortButtons.forEach((b) => {
+        const m = b.dataset.sort as SortMode;
+        const arrow = b.querySelector('[data-arrow]');
+        if (arrow) arrow.textContent = directions[m] === 'asc' ? '↑' : '↓';
+        b.classList.toggle('on', m === mode);
+      });
+    }
+
     sortButtons.forEach((btn) =>
       btn.addEventListener('click', () => {
-        mode = btn.dataset.sort as SortMode;
-        sortButtons.forEach((b) => b.classList.toggle('on', b === btn));
+        const next = btn.dataset.sort as SortMode;
+        // Clicking the sort already in use reverses it; that is how sortable
+        // columns behave everywhere, and it saves a second control.
+        if (next === mode) {
+          directions[mode] = directions[mode] === 'asc' ? 'desc' : 'asc';
+        } else {
+          mode = next;
+        }
+        paintArrows();
         go(1);
       })
     );
+
+    paintArrows();
 
     // One listener for every row, now and after each re-render.
     rows.addEventListener('click', (e) => {
@@ -266,6 +289,9 @@ const finishedCount = books.filter((b) => !isInProgress(b)).length;
     border-bottom: 1px solid transparent;
   }
   .sorts button.on { color: var(--accent); border-bottom-color: var(--accent); }
+  .sorts .arrow { opacity: 0; margin-left: 2px; }
+  .sorts button.on .arrow { opacity: 1; }
+  .sorts button:hover .arrow { opacity: 0.5; }
 
   .intro { font-size: 15px; color: var(--ink-soft); max-width: 52ch; margin: 0 0 24px; }
 
@@ -301,6 +327,13 @@ const finishedCount = books.filter((b) => !isInProgress(b)).length;
   .search input::placeholder { color: var(--ink-faint); opacity: 0.8; }
   /* The stock webkit clear cross does not belong on a paper page. */
   .search input::-webkit-search-cancel-button { display: none; }
+  /* Without a separator the count and the button read as one phrase:
+     "9 books clear". */
+  .search-count + .search-clear::before {
+    content: '·';
+    margin-right: 9px;
+    opacity: 0.45;
+  }
   .search-clear {
     background: none;
     border: none;
@@ -313,13 +346,14 @@ const finishedCount = books.filter((b) => !isInProgress(b)).length;
   }
   .search-clear:hover { color: var(--accent); }
 
-  .search-result {
+  /* Count sits on the search line itself, where the reader is already looking. */
+  .search-count {
     font-family: var(--font-mono);
-    font-size: 10.5px;
-    letter-spacing: 0.2em;
+    font-size: 10px;
+    letter-spacing: 0.18em;
     text-transform: uppercase;
-    color: var(--ink-faint);
-    margin: 0 0 22px;
+    color: var(--accent);
+    white-space: nowrap;
   }
 
   .sr-only {
@@ -342,7 +376,7 @@ const finishedCount = books.filter((b) => !isInProgress(b)).length;
     margin-left: 6px;
   }
 
-  .search + .booklog { margin-top: 26px; }
+  .search { margin-bottom: 26px; }
 
   .booklog-head,
   .booklog :global(.bl-row) {
