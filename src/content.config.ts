@@ -60,9 +60,26 @@ const books = defineCollection({
   }),
 });
 
+// The contact page's "elsewhere" links. One file, ordered, editable in the
+// admin. A cleared handle hides the row; deleting it removes it entirely.
+const socials = defineCollection({
+  loader: file('./content/socials.json', {
+    parser: (text) =>
+      (JSON.parse(text) as Record<string, unknown>[]).map((s, i) => ({
+        id: String(i),
+        ...s,
+      })),
+  }),
+  schema: z.object({
+    label: z.string(),
+    handle: z.string(),
+    note: z.string().default(''),
+  }),
+});
+
 const settings = defineCollection({
   loader: glob({ pattern: '*.json', base: './content/settings' }),
   schema: z.record(z.string()),
 });
 
-export const collections = { posts, doodles, pictures, books, settings };
+export const collections = { posts, doodles, pictures, books, socials, settings };

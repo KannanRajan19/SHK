@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync, mkdirSync, cpSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, cpSync, existsSync } from 'node:fs';
 import { runInNewContext } from 'node:vm';
 import { readingTime, deriveExcerpt } from './lib-blocks.mjs';
 
@@ -96,6 +96,18 @@ write('content/settings/text.json', {
   aboutBio3: DC.aboutBio3, aboutBio4: DC.aboutBio4,
 });
 write('content/settings/site.json', { contactRecipient: 'kannan.ms@gmail.com' });
+
+// The contact page's "elsewhere" links, seeded from the prototype. Written
+// only if absent, so re-running the migration never discards links the owner
+// has since edited or removed through the admin.
+if (!existsSync('content/socials.json')) {
+  write('content/socials.json', [
+    { label: 'instagram', handle: '@littlepapersky', note: 'doodles, weekly-ish' },
+    { label: 'are.na', handle: 'littlepapersky', note: "things i'm collecting" },
+    { label: 'bluesky', handle: '@papersky', note: 'rare and brief' },
+    { label: 'email', handle: 'hello@papersky.cafe', note: 'the slow way, my favorite' },
+  ]);
+}
 
 console.log(
   `migration complete — ${posts.length} posts, ${doodles.length} doodles, ` +

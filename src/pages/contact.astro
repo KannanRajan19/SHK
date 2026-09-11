@@ -1,12 +1,14 @@
 ---
+import { getCollection } from 'astro:content';
 import Base from '../layouts/Base.astro';
+import { visibleSocials } from '../lib/socials';
+import type { Social } from '../lib/socials';
 
-const socials = [
-  { label: 'instagram', handle: '@littlepapersky', note: 'doodles, weekly-ish' },
-  { label: 'are.na', handle: 'littlepapersky', note: "things i'm collecting" },
-  { label: 'bluesky', handle: '@papersky', note: 'rare and brief' },
-  { label: 'email', handle: 'hello@papersky.cafe', note: 'the slow way, my favorite' },
-];
+// Editable in the admin. A cleared handle hides that row; an emptied list
+// drops the whole "elsewhere" column rather than leaving a bare heading.
+const socials = visibleSocials(
+  (await getCollection('socials')).map((s) => s.data) as Social[]
+);
 ---
 
 <Base title="contact · my little paper sky" page="contact">
@@ -52,7 +54,9 @@ const socials = [
       </div>
 
       <div>
+        {socials.length > 0 && (
         <div class="section-label" style="margin-bottom: 18px;"><span>elsewhere</span></div>
+        )}
         <ul class="socials">
           {socials.map((s) => (
             <li>

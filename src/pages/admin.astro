@@ -8,6 +8,7 @@ import type { Book } from '../lib/books';
 const text = (await getEntry('settings', 'text'))?.data as Record<string, string>;
 const currently = (await getEntry('settings', 'currently'))?.data as Record<string, string>;
 const books = (await getCollection('books')).map((b) => b.data) as Book[];
+const socials = (await getCollection('socials')).map((s) => s.data);
 ---
 
 <!doctype html>
@@ -129,12 +130,30 @@ const books = (await getCollection('books')).map((b) => b.data) as Book[];
         <label class="f">learning<input data-c="learning" type="text" value={currently.learning} /></label>
         <button class="btn accent" data-publish-currently>save currently</button>
       </section>
+
+      <!-- 7. contact links -->
+      <section>
+        <h2>contact links</h2>
+        <p class="hint">
+          clearing a handle hides that link on the contact page. removing it
+          takes it away completely.
+        </p>
+        <div class="links" data-links></div>
+        <div class="add-row">
+          <button class="btn" data-add-link>+ add a link</button>
+        </div>
+        <button class="btn accent" data-publish-socials>save contact links</button>
+      </section>
     </div>
+
+    <script type="application/json" id="socials-data" set:html={JSON.stringify(socials)} />
 
     <script type="application/json" id="book-data" set:html={JSON.stringify(books)} />
 
     <script>
       import { moveBlock, removeBlock } from '../scripts/admin/composer';
+      import { normaliseSocial } from '../lib/socials';
+      import type { Social } from '../lib/socials';
       import { readingTime, deriveExcerpt } from '../lib/blocks';
       import type { Block } from '../lib/blocks';
 
@@ -468,6 +487,85 @@ const books = (await getCollection('books')).map((b) => b.data) as Book[];
         })
       );
 
+      // ---- contact links ----
+      let links: Social[] = JSON.parse(
+        document.getElementById('socials-data')?.textContent ?? '[]'
+      );
+      let confirming = -1; // index whose delete is awaiting confirmation
+      const linksEl = $<HTMLElement>('[data-links]');
+
+      const esc = (v: string) => (v ?? '').replace(/"/g, '&quot;');
+
+      function renderLinks() {
+        linksEl.innerHTML = links
+          .map((l, i) => {
+            const controls =
+              confirming === i
+                ? `<span class="confirm">remove?
+                     <button data-yes="${i}">yes</button>
+                     <button data-no="${i}">cancel</button>
+                   </span>`
+                : `<button class="rm" data-rm-link="${i}" aria-label="remove link">✕</button>`;
+            return `<div class="link">
+              <div class="lhead"><span>link ${i + 1}</span>${controls}</div>
+              <label class="f">what it is
+                <input data-l="label" data-i="${i}" type="text" value="${esc(l.label)}" placeholder="instagram" /></label>
+              <label class="f">handle or address
+                <input data-l="handle" data-i="${i}" type="text" value="${esc(l.handle)}" placeholder="@yourname" /></label>
+              <label class="f">little note (optional)
+                <input data-l="note" data-i="${i}" type="text" value="${esc(l.note)}" placeholder="doodles, weekly-ish" /></label>
+            </div>`;
+          })
+          .join('');
+
+        if (links.length === 0) {
+          linksEl.innerHTML =
+            '<p class="hint">no links yet — the contact page will just show the letter form.</p>';
+        }
+      }
+
+      linksEl.addEventListener('input', (e) => {
+        const el = e.target as HTMLInputElement;
+        const field = el.dataset.l as keyof Social | undefined;
+        if (!field || el.dataset.i === undefined) return;
+        links[+el.dataset.i][field] = el.value;
+      });
+
+      linksEl.addEventListener('click', (e) => {
+        const el = e.target as HTMLElement;
+        if (el.dataset.rmLink !== undefined) {
+          // Ask before removing: a mis-tap on a phone should not delete a link.
+          confirming = +el.dataset.rmLink;
+          renderLinks();
+        } else if (el.dataset.yes !== undefined) {
+          links = links.filter((_, i) => i !== +el.dataset.yes!);
+          confirming = -1;
+          renderLinks();
+        } else if (el.dataset.no !== undefined) {
+          confirming = -1;
+          renderLinks();
+        }
+      });
+
+      $<HTMLButtonElement>('[data-add-link]').addEventListener('click', () => {
+        links = [...links, { label: '', handle: '', note: '' }];
+        confirming = -1;
+        renderLinks();
+      });
+
+      renderLinks();
+
+      $<HTMLButtonElement>('[data-publish-socials]').addEventListener('click', () =>
+        run('contact links', async () => {
+          // Saved as authored, including cleared ones -- the page decides what
+          // to show, so clearing a handle is reversible by typing it back.
+          await publish(
+            [{ path: 'content/socials.json', json: links.map(normaliseSocial) }],
+            'content: update contact links'
+          );
+        })
+      );
+
       $<HTMLButtonElement>('[data-publish-currently]').addEventListener('click', () =>
         run('currently', async () => {
           const json: Record<string, string> = {};
@@ -603,6 +701,53 @@ const books = (await getCollection('books')).map((b) => b.data) as Book[];
       .f textarea { min-height: 80px; resize: vertical; }
       .f input:focus,
       .f textarea:focus { border-bottom-color: var(--accent); }
+
+      .hint {
+        font-size: 13px;
+        color: var(--ink-faint);
+        margin: -6px 0 16px;
+        max-width: 54ch;
+        line-height: 1.6;
+      }
+      .links { display: grid; gap: 14px; margin-bottom: 14px; }
+      .link { border: 1px solid var(--rule); padding: 12px 14px; background: var(--paper); }
+      .lhead {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-family: var(--font-mono);
+        font-size: 10px;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+        color: var(--ink-faint);
+        margin-bottom: 10px;
+      }
+      .lhead .rm {
+        background: none;
+        border: 1px solid var(--rule);
+        color: var(--ink-soft);
+        padding: 2px 8px;
+        font-family: var(--font-mono);
+        font-size: 12px;
+      }
+      .confirm {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        color: var(--accent);
+        letter-spacing: 0.12em;
+      }
+      .confirm button {
+        background: none;
+        border: 1px solid var(--accent);
+        color: var(--accent);
+        padding: 2px 8px;
+        font-family: var(--font-mono);
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+      }
+      .confirm button[data-no] { border-color: var(--rule); color: var(--ink-faint); }
 
       .composer { display: grid; gap: 14px; margin-bottom: 14px; }
       .block { border: 1px solid var(--rule); padding: 12px 14px; background: var(--paper); }
