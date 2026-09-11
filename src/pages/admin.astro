@@ -50,8 +50,12 @@ const books = (await getCollection('books')).map((b) => b.data) as Book[];
         <div>
           <div class="kicker">admin</div>
           <h1 class="dash-title">my little paper sky</h1>
+          <p class="welcome">welcome back, sahana ♡</p>
         </div>
-        <a class="btn" href="/">view site →</a>
+        <div class="dash-actions">
+          <a class="btn" href="/">view site →</a>
+          <button class="btn" data-logout>log out</button>
+        </div>
       </header>
 
       <div class="status" data-status hidden></div>
@@ -147,7 +151,8 @@ const books = (await getCollection('books')).map((b) => b.data) as Book[];
       loginBtn.disabled = false;
       loginBtn.textContent = 'log in';
 
-      $<HTMLFormElement>('[data-login-form]').addEventListener('submit', async (e) => {
+      const form = $<HTMLFormElement>('[data-login-form]');
+      form.addEventListener('submit', async (e) => {
         e.preventDefault();
         const err = $<HTMLElement>('[data-login-err]');
         err.textContent = '';
@@ -177,6 +182,8 @@ const books = (await getCollection('books')).map((b) => b.data) as Book[];
 
           login.hidden = true;
           dash.hidden = false;
+          // The form keeps the typed password in the DOM otherwise.
+          form.reset();
 
           // If the dashboard somehow stays hidden, say so rather than leaving
           // a blank screen and no explanation.
@@ -185,6 +192,17 @@ const books = (await getCollection('books')).map((b) => b.data) as Book[];
           }
         } catch (e) {
           err.textContent = `couldn't reach the server: ${(e as Error).message}`;
+        }
+      });
+
+      // ---- logout ----
+      $<HTMLButtonElement>('[data-logout]').addEventListener('click', async () => {
+        // Clear the cookie server-side, then reload so the page comes back in
+        // its logged-out state with nothing of the session left in the DOM.
+        try {
+          await fetch('/api/logout', { method: 'POST' });
+        } finally {
+          window.location.reload();
         }
       });
 
@@ -530,6 +548,19 @@ const books = (await getCollection('books')).map((b) => b.data) as Book[];
         padding-bottom: 20px;
         border-bottom: 1px solid var(--rule);
         margin-bottom: 8px;
+      }
+      .welcome {
+        font-family: var(--font-hand);
+        font-size: 20px;
+        color: var(--accent);
+        margin: 4px 0 0;
+        line-height: 1.2;
+      }
+      .dash-actions {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        align-items: center;
       }
       .dash section {
         padding: 28px 0;
