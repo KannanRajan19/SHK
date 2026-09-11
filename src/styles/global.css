@@ -499,12 +499,23 @@ label {
 .ed-btn:hover { background: rgba(251, 242, 238, 0.12); }
 
 .ed-target { position: relative; }
+
+/*
+ * Controls exist in the DOM but stay hidden until editing is switched on.
+ * The base .ed-controls rule below must NOT set display, or it would override
+ * this by virtue of coming later at equal specificity.
+ */
+.ed-controls { display: none; }
+body.ed-on .ed-controls { display: flex; }
+
+.ed-bar.ed-active { background: var(--accent); }
+.ed-bar.ed-active .ed-btn { border-color: rgba(251, 242, 238, 0.6); }
+
 .ed-controls {
   position: absolute;
   top: 6px;
   right: 6px;
   z-index: 20;
-  display: flex;
   gap: 4px;
   align-items: center;
   flex-wrap: wrap;

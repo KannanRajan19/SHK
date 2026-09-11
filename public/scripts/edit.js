@@ -20,14 +20,56 @@
   if (document.querySelector('[data-edit]') === null) return;
 
   // ---------- chrome ----------
+  /*
+   * Being signed in and being in edit mode are deliberately different states.
+   * A session lasts hours, and most of that time the owner is just reading her
+   * own site -- showing edit buttons on every page the whole time means anyone
+   * glancing at her screen sees them. Editing is something she turns on.
+   *
+   * The choice lives in sessionStorage, so it lasts the tab and resets when
+   * she closes it. Nothing here is a permission: the controls are cosmetic
+   * and every write is still checked by the server.
+   */
+  const EDIT_KEY = 'ps_editing';
+  let editing = (() => {
+    try {
+      return sessionStorage.getItem(EDIT_KEY) === '1';
+    } catch {
+      return false; // private browsing can throw on access
+    }
+  })();
+
   const bar = document.createElement('div');
   bar.className = 'ed-bar';
   bar.innerHTML = `
-    <span class="ed-who">editing as sahana</span>
+    <span class="ed-who">signed in as sahana</span>
     <span class="ed-msg" data-ed-msg></span>
+    <button class="ed-btn" data-ed-toggle></button>
     <a class="ed-btn" href="/admin">admin</a>
     <button class="ed-btn" data-ed-logout>log out</button>`;
   document.body.appendChild(bar);
+
+  const toggle = bar.querySelector('[data-ed-toggle]');
+
+  function applyEditing() {
+    document.body.classList.toggle('ed-on', editing);
+    toggle.textContent = editing ? 'stop editing' : 'start editing';
+    bar.classList.toggle('ed-active', editing);
+    if (!editing) {
+      // Leaving edit mode should not leave a half-finished form behind.
+      document.querySelectorAll('.ed-form, .ed-confirm').forEach((n) => n.remove());
+    }
+  }
+
+  toggle.addEventListener('click', () => {
+    editing = !editing;
+    try {
+      sessionStorage.setItem(EDIT_KEY, editing ? '1' : '0');
+    } catch {
+      /* not worth failing over */
+    }
+    applyEditing();
+  });
 
   const msg = bar.querySelector('[data-ed-msg]');
   const say = (text, kind = '') => {
@@ -148,6 +190,7 @@
 
   attachControls();
   window.addEventListener('ps:rows-rendered', attachControls);
+  applyEditing();
 
   // ---------- delete ----------
   function confirmDelete(el, kind, controls) {
