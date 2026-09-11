@@ -5,6 +5,9 @@ import Base from '../layouts/Base.astro';
 const text = (await getEntry('settings', 'text'))?.data as Record<string, string>;
 // Same file the fixed widget reads, so the two can never disagree.
 const currently = (await getEntry('settings', 'currently'))?.data as Record<string, string>;
+const site = (await getEntry('settings', 'site'))?.data as Record<string, string>;
+const photo = (site?.aboutPhoto ?? '').trim();
+const photoCaption = (site?.aboutPhotoCaption ?? 'probably').trim();
 
 const rows: Array<[string, string]> = [
   ['reading', currently.reading],
@@ -30,8 +33,10 @@ const rows: Array<[string, string]> = [
 
       <div class="polaroid">
         <div class="tape" style="top: -10px; left: 50%; margin-left: -40px;"></div>
-        <div class="placeholder" style="aspect-ratio: 4/5; width: 100%;">a photo of me</div>
-        <div class="polaroid-caption">probably</div>
+        {photo
+          ? <img src={photo} alt="sahana" style="aspect-ratio: 4/5; width: 100%; object-fit: cover; display: block;" />
+          : <div class="placeholder" style="aspect-ratio: 4/5; width: 100%;">a photo of me</div>}
+        <div class="polaroid-caption">{photoCaption}</div>
       </div>
     </div>
 

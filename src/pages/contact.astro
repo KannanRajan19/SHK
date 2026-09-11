@@ -125,7 +125,10 @@ const publicEmail = (site?.publicEmail ?? '').trim();
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
       });
-      if (!res.ok) throw new Error(String(res.status));
+      // The server reports mail failures as 200 with ok:false, because a 5xx
+      // body gets replaced by Cloudflare's error page. So trust the flag.
+      const body = await res.json().catch(() => ({}) as { ok?: boolean; error?: string });
+      if (!res.ok || !body.ok) throw new Error(body.error ?? `send failed (${res.status})`);
       form.hidden = true;
       sent.hidden = false;
     } catch {
@@ -135,6 +138,8 @@ const publicEmail = (site?.publicEmail ?? '').trim();
       formError.textContent = fallback
         ? `sorry — the letter didn't go through. you can reach me at ${fallback} instead.`
         : "sorry — the letter didn't go through just now. please try again in a little while.";
+      // Keep the reason where the owner can find it without it shouting at visitors.
+      console.warn('[paper sky] contact form:', (e as Error).message);
       formError.hidden = false;
     } finally {
       button.disabled = false;

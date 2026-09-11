@@ -6,6 +6,17 @@ interface Env {
   CONTACT_SENDER?: string;
 }
 
+/*
+ * Mail failures answer 200 with ok:false, not 5xx.
+ *
+ * Cloudflare's proxy replaces an origin 5xx with its own branded error page,
+ * discarding the response body -- so a carefully worded explanation reaches
+ * the browser on the .pages.dev host and is thrown away on the custom domain,
+ * exactly where it matters. The client contract is the ok flag, not the
+ * status, so the message survives.
+ */
+const MAIL_FAILED = 200;
+
 const json = (data: unknown, status = 200) =>
   new Response(JSON.stringify(data), {
     status,
@@ -49,7 +60,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   } catch {
     // An unhandled throw here surfaces as a bare Cloudflare 502 with no JSON
     // and no explanation -- the same opacity as an uncaught 1101.
-    return json({ ok: false, error: 'could not reach the mail service' }, 502);
+    return json({ ok: false, error: 'could not reach the mail service' }, MAIL_FAILED);
   }
 
   if (!res.ok) {
@@ -64,7 +75,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
           : res.status === 422
             ? 'the mail service rejected the sender or recipient address'
             : `the mail service returned ${res.status}`;
-    return json({ ok: false, error: reason }, 502);
+    return json({ ok: false, error: reason }, MAIL_FAILED);
   }
 
   return json({ ok: true });

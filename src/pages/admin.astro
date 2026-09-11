@@ -9,6 +9,7 @@ const text = (await getEntry('settings', 'text'))?.data as Record<string, string
 const currently = (await getEntry('settings', 'currently'))?.data as Record<string, string>;
 const books = (await getCollection('books')).map((b) => b.data) as Book[];
 const socials = (await getCollection('socials')).map((s) => s.data);
+const site = (await getEntry('settings', 'site'))?.data as Record<string, string>;
 
 ---
 
@@ -123,7 +124,17 @@ const socials = (await getCollection('socials')).map((s) => s.data);
         <label class="f">paragraph 2<textarea data-t="aboutBio2">{text.aboutBio2}</textarea></label>
         <label class="f">paragraph 3<textarea data-t="aboutBio3">{text.aboutBio3}</textarea></label>
         <label class="f">closing line<textarea data-t="aboutBio4">{text.aboutBio4}</textarea></label>
-        <button class="btn accent" data-publish-text>save text</button>
+
+        <h2 style="margin-top: 32px;">your photo on the about page</h2>
+        {site?.aboutPhoto && (
+          <img class="about-preview" src={site.aboutPhoto} alt="current about photo" />
+        )}
+        <label class="f">pick a new photo (leave empty to keep the one you have)
+          <input data-about-photo type="file" accept="image/*" /></label>
+        <label class="f">the little caption under it
+          <input data-about-caption type="text" value={site?.aboutPhotoCaption ?? 'probably'} /></label>
+
+        <button class="btn accent" data-publish-text>save text &amp; photo</button>
       </section>
 
       <!-- 6. currently -->
@@ -153,6 +164,7 @@ const socials = (await getCollection('socials')).map((s) => s.data);
     </div>
 
     <script type="application/json" id="socials-data" set:html={JSON.stringify(socials)} />
+    <script type="application/json" id="site-data" set:html={JSON.stringify(site ?? {})} />
 
     <script type="application/json" id="book-data" set:html={JSON.stringify(books)} />
 
@@ -486,10 +498,26 @@ const socials = (await getCollection('socials')).map((s) => s.data);
           document.querySelectorAll<HTMLTextAreaElement>('[data-t]').forEach((el) => {
             json[el.dataset.t!] = el.value.trim();
           });
-          await publish(
-            [{ path: 'content/settings/text.json', json }],
-            'content: update home and about text'
-          );
+
+          const files = [{ path: 'content/settings/text.json', json }];
+
+          // The about photo and its caption live in site settings. Only send
+          // a new image if one was chosen, so saving the text alone never
+          // clears the photo already there.
+          const photoInput = $<HTMLInputElement>('[data-about-photo]');
+          const caption = $<HTMLInputElement>('[data-about-caption]').value.trim();
+          const chosen = photoInput.files?.[0];
+          const current = JSON.parse(
+            document.getElementById('site-data')?.textContent ?? '{}'
+          ) as Record<string, string>;
+
+          const aboutPhoto = chosen ? await upload(chosen) : (current.aboutPhoto ?? '');
+          files.push({
+            path: 'content/settings/site.json',
+            json: { ...current, aboutPhoto, aboutPhotoCaption: caption },
+          });
+
+          await publish(files, 'content: update home and about');
         })
       );
 
@@ -756,6 +784,14 @@ const socials = (await getCollection('socials')).map((s) => s.data);
         flex: none;
       }
 
+      .about-preview {
+        display: block;
+        width: 120px;
+        aspect-ratio: 4/5;
+        object-fit: cover;
+        border: 1px solid var(--rule);
+        margin-bottom: 12px;
+      }
       .links { display: grid; gap: 14px; margin-bottom: 14px; }
       .link { border: 1px solid var(--rule); padding: 12px 14px; background: var(--paper); }
       .lhead {
