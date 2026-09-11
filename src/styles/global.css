@@ -28,6 +28,16 @@
 
 * { box-sizing: border-box; }
 
+/*
+ * The hidden attribute has to win over any display a class sets.
+ *
+ * Browsers implement [hidden] as display:none in the UA stylesheet, which any
+ * author rule outranks. So `.login-wrap { display: flex }` silently defeated
+ * `el.hidden = true`: the attribute was set, the element stayed on screen, and
+ * the dashboard rendered underneath it instead of in its place.
+ */
+[hidden] { display: none !important; }
+
 html, body { margin: 0; padding: 0; }
 
 body {
