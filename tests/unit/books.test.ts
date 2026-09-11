@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   sortBooks, paginate, formatRating, isInProgress, averageRating, formatFinished,
+  filterBooks,
 } from '../../src/lib/books';
 import type { Book } from '../../src/lib/books';
 
@@ -87,5 +88,54 @@ describe('paginate', () => {
 
   it('handles an empty log without dividing by zero', () => {
     expect(paginate([], 1)).toEqual({ items: [], page: 1, pages: 1 });
+  });
+});
+
+describe('filterBooks', () => {
+  const list = [
+    b({ title: 'the hobbit', author: 'j r r tolkien' }),
+    b({ title: 'dune', author: 'frank herbert' }),
+    b({ title: 'the dispossessed', author: 'ursula k le guin' }),
+  ];
+
+  it('returns everything for an empty query', () => {
+    expect(filterBooks(list, '')).toHaveLength(3);
+    expect(filterBooks(list, '   ')).toHaveLength(3);
+  });
+
+  it('matches on title', () => {
+    expect(filterBooks(list, 'hobbit').map((x) => x.title)).toEqual(['the hobbit']);
+  });
+
+  it('matches on author', () => {
+    expect(filterBooks(list, 'herbert').map((x) => x.title)).toEqual(['dune']);
+  });
+
+  it('is case insensitive', () => {
+    expect(filterBooks(list, 'DUNE')).toHaveLength(1);
+    expect(filterBooks(list, 'Le Guin')).toHaveLength(1);
+  });
+
+  it('matches partial words anywhere in the string', () => {
+    expect(filterBooks(list, 'poss')).toHaveLength(1);
+  });
+
+  it('ignores surrounding whitespace', () => {
+    expect(filterBooks(list, '  dune  ')).toHaveLength(1);
+  });
+
+  it('returns nothing when there is no match, rather than everything', () => {
+    expect(filterBooks(list, 'zzzzz')).toEqual([]);
+  });
+
+  it('preserves the incoming order', () => {
+    expect(filterBooks(list, 'the').map((x) => x.title))
+      .toEqual(['the hobbit', 'the dispossessed']);
+  });
+
+  it('does not mutate the input', () => {
+    const copy = structuredClone(list);
+    filterBooks(list, 'dune');
+    expect(list).toEqual(copy);
   });
 });

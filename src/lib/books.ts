@@ -61,3 +61,19 @@ export function paginate<T>(items: T[], page: number, per = PER_PAGE) {
     pages,
   };
 }
+
+/**
+ * Free-text search across title and author.
+ *
+ * Substring rather than word-prefix matching, so "poss" finds "the
+ * dispossessed" and a half-remembered fragment still lands — which is how
+ * someone actually looks for a book they read years ago. Order is preserved so
+ * the caller's sort still decides the arrangement.
+ */
+export function filterBooks(books: Book[], query: string): Book[] {
+  const q = query.trim().toLowerCase();
+  if (q === '') return [...books];
+  return books.filter(
+    (b) => b.title.toLowerCase().includes(q) || b.author.toLowerCase().includes(q)
+  );
+}
