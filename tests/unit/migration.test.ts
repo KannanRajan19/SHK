@@ -3,6 +3,15 @@ import { readFileSync, readdirSync, existsSync } from 'node:fs';
 
 const read = (p: string) => JSON.parse(readFileSync(p, 'utf8'));
 
+/**
+ * These assert that the migration PRESERVED the seed content — not that the
+ * collections never change. The admin exists to add content, so any test
+ * pinning an exact count fails the first time Sahana publishes something,
+ * which would make a working system look broken.
+ *
+ * The rule is therefore: every seeded item must still be present and
+ * unmodified. Anything beyond that is hers.
+ */
 describe('content migration', () => {
   beforeAll(() => {
     if (!existsSync('content/books.json')) {
@@ -10,11 +19,13 @@ describe('content migration', () => {
     }
   });
 
-  it('preserves all 832 books in original order', () => {
-    const before = read('design/books.json');
-    const after = read('content/books.json');
-    expect(after).toHaveLength(832);
-    expect(after).toEqual(before);
+  it('still contains all 832 seeded books, unmodified and in their original order', () => {
+    const seeded = read('design/books.json');
+    const current = read('content/books.json');
+
+    expect(current.length).toBeGreaterThanOrEqual(832);
+    // New books are unshifted to the top, so the seeded log is the tail.
+    expect(current.slice(current.length - 832)).toEqual(seeded);
   });
 
   it('keeps every book field lowercase', () => {
@@ -24,11 +35,17 @@ describe('content migration', () => {
     }
   });
 
-  it('migrates 6 posts, all body paragraphs becoming text blocks', () => {
-    const files = readdirSync('content/posts');
-    expect(files).toHaveLength(6);
-    for (const f of files) {
-      const post = read(`content/posts/${f}`);
+  it('has every seeded post, with body paragraphs as text blocks', () => {
+    const seededSlugs = [
+      'a-small-recipe-for-marmalade',
+      'on-keeping-a-quiet-website',
+      'on-slow-mornings',
+      'the-lighthouse-book',
+      'the-trees-on-my-street',
+      'three-small-joys-this-week',
+    ];
+    for (const slug of seededSlugs) {
+      const post = read(`content/posts/${slug}.json`);
       expect(post.blocks.length).toBeGreaterThan(0);
       expect(post.blocks.every((b: any) => b.type === 'text')).toBe(true);
       expect(post.minutes).toBeGreaterThan(0);
@@ -36,9 +53,34 @@ describe('content migration', () => {
     }
   });
 
-  it('migrates 5 doodles and 8 pictures', () => {
-    expect(readdirSync('content/doodles')).toHaveLength(5);
-    expect(readdirSync('content/pictures')).toHaveLength(8);
+  it('has every seeded doodle and picture', () => {
+    const doodles = [
+      'a-coffee-that-took-too-long', 'lemons-in-a-blue-bowl',
+      'sleepy-cat-by-the-window', 'the-moon-at-4am', 'three-small-mushrooms',
+    ];
+    for (const slug of doodles) {
+      expect(existsSync(`content/doodles/${slug}.json`)).toBe(true);
+      expect(read(`content/doodles/${slug}.json`).placeholder).toMatch(/^doodle/);
+    }
+    // Eight seeded pictures are prefixed 01-..08-; later ones are timestamped.
+    const seededPictures = readdirSync('content/pictures').filter((f) => /^0[1-8]-/.test(f));
+    expect(seededPictures).toHaveLength(8);
+  });
+
+  it('validates anything the admin has since published', () => {
+    for (const f of readdirSync('content/doodles')) {
+      const d = read(`content/doodles/${f}`);
+      expect(typeof d.title).toBe('string');
+      expect(d.title.length).toBeGreaterThan(0);
+      expect(typeof d.date).toBe('string');
+      // An image is either absent or a real uploads path — never a stray value.
+      if (d.image) expect(d.image).toMatch(/^\/uploads\//);
+    }
+    for (const f of readdirSync('content/posts')) {
+      const p = read(`content/posts/${f}`);
+      expect(Array.isArray(p.blocks)).toBe(true);
+      for (const b of p.blocks) expect(['text', 'image']).toContain(b.type);
+    }
   });
 
   it('migrates all five currently fields and six text fields', () => {
