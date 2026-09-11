@@ -41,15 +41,24 @@ const finishedCount = books.filter((b) => !isInProgress(b)).length;
       </div>
       <ul data-rows>
         {firstPage.items.map((book, i) => (
-          <li data-book-row>
+          <li
+            data-book-row
+            data-edit="book"
+            data-edit-id={String(i)}
+            data-edit-title={book.title}
+            data-edit-author={book.author}
+            data-edit-finished={book.finished}
+            data-edit-rating={String(book.rating)}
+            data-edit-note={book.note}
+          >
             <button class="bl-row" data-toggle>
               <span class="bl-n">{String(i + 1).padStart(2, '0')}</span>
-              <span class="bl-title">{book.title}</span>
-              <span class="bl-author">{book.author}</span>
+              <span class="bl-title" data-edit-slot="title">{book.title}</span>
+              <span class="bl-author" data-edit-slot="author">{book.author}</span>
               <span class={`bl-finished${isInProgress(book) ? ' in-progress' : ''}`}>
                 {formatFinished(book)}
               </span>
-              <span class="bl-rating">{formatRating(book.rating)}</span>
+              <span class="bl-rating" data-edit-slot="ratingStars">{formatRating(book.rating)}</span>
             </button>
             {book.note && <div class="bl-note" hidden>{book.note}</div>}
           </li>
@@ -95,8 +104,13 @@ const finishedCount = books.filter((b) => !isInProgress(b)).length;
     let mode: SortMode = 'recent';
     let page = 1;
 
+    // Also escapes quotes: these values now land in attributes as well as text.
     const esc = (s: string) =>
-      s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      String(s ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
 
     function render() {
       const sorted = sortBooks(books, mode);
@@ -110,16 +124,24 @@ const finishedCount = books.filter((b) => !isInProgress(b)).length;
           const note = book.note
             ? `<div class="bl-note" hidden>${esc(book.note)}</div>`
             : '';
-          return `<li data-book-row><button class="bl-row" data-toggle>
+          return `<li data-book-row
+            data-edit="book"
+            data-edit-title="${esc(book.title)}"
+            data-edit-author="${esc(book.author)}"
+            data-edit-finished="${esc(book.finished)}"
+            data-edit-rating="${book.rating}"
+            data-edit-note="${esc(book.note)}"><button class="bl-row" data-toggle>
             <span class="bl-n">${n}</span>
-            <span class="bl-title">${esc(book.title)}</span>
-            <span class="bl-author">${esc(book.author)}</span>
+            <span class="bl-title" data-edit-slot="title">${esc(book.title)}</span>
+            <span class="bl-author" data-edit-slot="author">${esc(book.author)}</span>
             <span class="bl-finished${prog}">${esc(formatFinished(book))}</span>
-            <span class="bl-rating">${formatRating(book.rating)}</span>
+            <span class="bl-rating" data-edit-slot="ratingStars">${formatRating(book.rating)}</span>
           </button>${note}</li>`;
         })
         .join('');
 
+      // Rows are replaced wholesale, so any editing controls go with them.
+      window.dispatchEvent(new CustomEvent('ps:rows-rendered'));
       pageEl.textContent = String(view.page);
       pagesEl.textContent = String(view.pages);
       first.disabled = view.page === 1;

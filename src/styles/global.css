@@ -460,3 +460,119 @@ label {
   }
   #trail { display: none; }
 }
+
+/* ------------------------------------------------------------------
+   In-place editing chrome.
+   Only ever rendered for a signed-in owner: public/scripts/edit.js is
+   loaded solely when the ps_editor marker cookie is present, and it
+   confirms the real session before injecting anything.
+   ------------------------------------------------------------------ */
+.ed-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 18px;
+  background: var(--ink);
+  color: var(--paper);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+}
+.ed-bar .ed-who { opacity: 0.75; }
+.ed-bar .ed-msg { flex: 1; letter-spacing: 0.08em; text-transform: none; }
+.ed-bar .ed-msg.ok { color: var(--accent-soft); }
+.ed-bar .ed-msg.bad { color: #f0b8b8; }
+.ed-btn {
+  background: none;
+  border: 1px solid rgba(251, 242, 238, 0.4);
+  color: var(--paper);
+  padding: 4px 10px;
+  font: inherit;
+  text-decoration: none;
+}
+.ed-btn:hover { background: rgba(251, 242, 238, 0.12); }
+
+.ed-target { position: relative; }
+.ed-controls {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  z-index: 20;
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.ed-pill {
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  color: var(--ink-soft);
+  padding: 2px 8px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  line-height: 1.6;
+}
+.ed-pill:hover { border-color: var(--accent); color: var(--accent); }
+.ed-pill.ed-danger:hover { border-color: #b4524f; color: #b4524f; }
+.ed-pill:disabled { opacity: 0.4; }
+.ed-confirm {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--paper);
+  border: 1px solid var(--accent);
+  padding: 2px 6px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.ed-form {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 14px;
+  border: 1px solid var(--accent);
+  background: var(--paper);
+  position: relative;
+  z-index: 21;
+  text-align: left;
+}
+.ed-form label {
+  display: grid;
+  gap: 4px;
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+.ed-form input,
+.ed-form textarea {
+  font-family: var(--font-body);
+  font-size: 14px;
+  letter-spacing: normal;
+  text-transform: none;
+  color: var(--ink);
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--rule);
+  padding: 6px 2px;
+  outline: none;
+}
+.ed-form textarea { min-height: 70px; resize: vertical; }
+.ed-form input:focus,
+.ed-form textarea:focus { border-bottom-color: var(--accent); }
+.ed-row { display: flex; gap: 8px; }
+.ed-pill.ed-save { border-color: var(--accent); color: var(--accent); }

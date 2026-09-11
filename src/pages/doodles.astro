@@ -3,7 +3,7 @@ import { getCollection } from 'astro:content';
 import Base from '../layouts/Base.astro';
 
 const doodles = (await getCollection('doodles'))
-  .map((d) => d.data)
+  .map((d) => ({ id: d.id, ...d.data }))
   .sort((a, b) => Date.parse(b.date) - Date.parse(a.date));
 ---
 
@@ -27,7 +27,16 @@ const doodles = (await getCollection('doodles'))
       The pager only toggles visibility.
     */}
     {doodles.map((d, i) => (
-      <div class="sheet-wrap" data-doodle hidden={i !== 0}>
+      <div
+        class="sheet-wrap"
+        data-doodle
+        hidden={i !== 0}
+        data-edit="doodle"
+        data-edit-id={d.id}
+        data-edit-title={d.title}
+        data-edit-note={d.note}
+        data-edit-images={d.image}
+      >
         <div class="tape" style="top: -12px; left: 36px; transform: rotate(-4deg);"></div>
         <div class="tape" style="top: -12px; right: 48px; transform: rotate(3deg);"></div>
         <div class="sheet">
@@ -37,10 +46,10 @@ const doodles = (await getCollection('doodles'))
           <div class="meta">
             <div>
               <div class="date">{d.date}</div>
-              <div class="doodle-title">{d.title}</div>
+              <div class="doodle-title" data-edit-slot="title">{d.title}</div>
             </div>
           </div>
-          <p class="note">{d.note}</p>
+          <p class="note" data-edit-slot="note">{d.note}</p>
         </div>
       </div>
     ))}

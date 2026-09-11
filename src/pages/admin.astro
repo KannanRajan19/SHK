@@ -10,22 +10,6 @@ const currently = (await getEntry('settings', 'currently'))?.data as Record<stri
 const books = (await getCollection('books')).map((b) => b.data) as Book[];
 const socials = (await getCollection('socials')).map((s) => s.data);
 
-const doodleEntries = (await getCollection('doodles'))
-  .map((d) => ({ id: d.id, ...d.data }))
-  .sort((a, b) => Date.parse(b.date) - Date.parse(a.date));
-
-// How many entries point at each uploaded image. Deleting an entry removes its
-// image too, unless something else still uses it.
-const imageUsage: Record<string, number> = {};
-for (const img of [
-  ...doodleEntries.map((d) => d.image),
-  ...(await getCollection('pictures')).map((p) => p.data.image),
-  ...(await getCollection('posts')).flatMap((p) =>
-    p.data.blocks.filter((b) => b.type === 'image').map((b) => b.value)
-  ),
-]) {
-  if (img) imageUsage[img] = (imageUsage[img] ?? 0) + 1;
-}
 ---
 
 <!doctype html>
@@ -101,12 +85,10 @@ for (const img of [
         <label class="f">image<input data-doodle-image type="file" accept="image/*" /></label>
         <button class="btn accent" data-publish-doodle>add doodle</button>
 
-        <h2 style="margin-top: 32px;">your doodles</h2>
         <p class="hint">
-          removing a doodle takes its picture with it. everything stays
-          recoverable in the site's history.
+          to change or remove a doodle you already added, open the doodles page
+          while signed in and edit it there.
         </p>
-        <div class="entries" data-doodle-list></div>
       </section>
 
       <!-- 3. picture -->
@@ -171,8 +153,6 @@ for (const img of [
     </div>
 
     <script type="application/json" id="socials-data" set:html={JSON.stringify(socials)} />
-    <script type="application/json" id="doodle-data" set:html={JSON.stringify(doodleEntries)} />
-    <script type="application/json" id="image-usage" set:html={JSON.stringify(imageUsage)} />
 
     <script type="application/json" id="book-data" set:html={JSON.stringify(books)} />
 
@@ -512,90 +492,6 @@ for (const img of [
           );
         })
       );
-
-      // ---- existing doodles ----
-      type DoodleEntry = { id: string; title: string; date: string; image?: string };
-
-      let doodles: DoodleEntry[] = JSON.parse(
-        document.getElementById('doodle-data')?.textContent ?? '[]'
-      );
-      const imageUsage: Record<string, number> = JSON.parse(
-        document.getElementById('image-usage')?.textContent ?? '{}'
-      );
-      let confirmingDoodle = '';
-      const doodleListEl = $<HTMLElement>('[data-doodle-list]');
-
-      function renderDoodles() {
-        if (doodles.length === 0) {
-          doodleListEl.innerHTML = '<p class="hint">no doodles yet.</p>';
-          return;
-        }
-        doodleListEl.innerHTML = doodles
-          .map((d) => {
-            const controls =
-              confirmingDoodle === d.id
-                ? `<span class="confirm">remove?
-                     <button data-dyes="${d.id}">yes</button>
-                     <button data-dno="${d.id}">cancel</button>
-                   </span>`
-                : `<button class="rm" data-drm="${d.id}" aria-label="remove doodle">✕</button>`;
-            const thumb = d.image
-              ? `<img class="thumb" src="${d.image}" alt="" />`
-              : '<span class="thumb empty"></span>';
-            return `<div class="entry">
-              ${thumb}
-              <span class="entry-main">
-                <span class="entry-title">${(d.title || 'untitled').replace(/</g, '&lt;')}</span>
-                <span class="entry-date">${(d.date || '').replace(/</g, '&lt;')}</span>
-              </span>
-              ${controls}
-            </div>`;
-          })
-          .join('');
-      }
-
-      doodleListEl.addEventListener('click', (e) => {
-        const el = e.target as HTMLElement;
-        if (el.dataset.drm) {
-          // Ask first -- a mis-tap should not delete a drawing.
-          confirmingDoodle = el.dataset.drm;
-          renderDoodles();
-          return;
-        }
-        if (el.dataset.dno) {
-          confirmingDoodle = '';
-          renderDoodles();
-          return;
-        }
-        const id = el.dataset.dyes;
-        if (!id) return;
-
-        const doodle = doodles.find((d) => d.id === id);
-        if (!doodle) return;
-
-        run(`"${doodle.title}"`, async () => {
-          const deletes = [`content/doodles/${id}.json`];
-          // Take the picture too, unless something else still points at it.
-          if (doodle.image && doodle.image.startsWith('/uploads/')) {
-            if ((imageUsage[doodle.image] ?? 0) <= 1) {
-              deletes.push(`public${doodle.image}`);
-            }
-          }
-          const res = await fetch('/api/publish', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ deletes, message: `content: remove doodle "${doodle.title}"` }),
-          });
-          const body = await res.json();
-          if (!res.ok || !body.ok) throw new Error(body.error ?? 'could not remove');
-
-          doodles = doodles.filter((d) => d.id !== id);
-          confirmingDoodle = '';
-          renderDoodles();
-        });
-      });
-
-      renderDoodles();
 
       // ---- contact links ----
       let links: Social[] = JSON.parse(

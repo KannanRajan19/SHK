@@ -66,8 +66,15 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
 
   attempts.delete(ip);
   const token = await signSession(env.SESSION_SECRET, SESSION_TTL);
-  return json({ ok: true }, 200, {
-    'Set-Cookie':
-      `ps_session=${token}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=${SESSION_TTL}`,
-  });
+
+  // Two cookies, doing different jobs:
+  //   ps_session  HttpOnly, signed -- the actual credential, unreadable by JS
+  //   ps_editor   readable, worthless on its own -- only tells a public page
+  //               whether it is worth loading the editing module at all
+  // Forging ps_editor loads a UI whose every action the server still refuses.
+  const attrs = `Secure; SameSite=Lax; Path=/; Max-Age=${SESSION_TTL}`;
+  const headers = new Headers({ 'Content-Type': 'application/json' });
+  headers.append('Set-Cookie', `ps_session=${token}; HttpOnly; ${attrs}`);
+  headers.append('Set-Cookie', `ps_editor=1; ${attrs}`);
+  return new Response(JSON.stringify({ ok: true }), { status: 200, headers });
 };

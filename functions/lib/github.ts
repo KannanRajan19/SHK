@@ -148,3 +148,31 @@ export async function deleteFile({
   });
   if (!res.ok) throw new GitHubError(res.status);
 }
+
+/**
+ * Reads a JSON file from the repo. Returns null when absent.
+ *
+ * Editing needs read-modify-write: the browser sends only the fields that
+ * changed, so the server must load the current file to merge into. Sending the
+ * whole entry from the client instead would let a stale page silently revert
+ * fields it never showed.
+ */
+export async function getJson<T>(
+  { token, repo, branch, path }: Omit<PutArgs, 'content' | 'message'>
+): Promise<T | null> {
+  if (!isAllowedPath(path)) throw new Error('path not allowed');
+
+  const res = await fetch(
+    `https://api.github.com/repos/${repo}/contents/${path}?ref=${encodeURIComponent(branch)}`,
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: 'application/vnd.github.raw+json',
+        'User-Agent': 'paper-sky-admin',
+      },
+    }
+  );
+  if (res.status === 404) return null;
+  if (!res.ok) throw new GitHubError(res.status);
+  return (await res.json()) as T;
+}

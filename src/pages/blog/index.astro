@@ -23,6 +23,8 @@ const posts = (await getCollection('posts')).sort(
     <div class="post-grid">
       {posts.map((p, i) => (
         <PostCard
+          id={p.id}
+          images={p.data.blocks.filter((b) => b.type === 'image').map((b) => b.value).join(',')}
           title={p.data.title}
           date={p.data.date}
           tag={p.data.tag}

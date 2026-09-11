@@ -1,5 +1,6 @@
 ---
 interface Props {
+  id: string;
   title: string;
   date: string;
   tag?: string;
@@ -7,20 +8,30 @@ interface Props {
   excerpt: string;
   href: string;
   index: number;
+  images?: string;
 }
 
-const { title, date, tag, minutes, excerpt, href, index } = Astro.props;
+const { id, title, date, tag, minutes, excerpt, href, index, images = '' } = Astro.props;
 // Deterministic, matching the prototype's PostCard formula exactly.
 const rot = ((index % 5) - 2) * 0.4;
 ---
 
-<a class="post-card" href={href} style={`--rot: ${rot}deg;`}>
+<a
+  class="post-card"
+  href={href}
+  style={`--rot: ${rot}deg;`}
+  data-edit="post"
+  data-edit-id={id}
+  data-edit-title={title}
+  data-edit-tag={tag ?? ''}
+  data-edit-images={images}
+>
   <div>
     <div class="head">
       <span class="date">{date}</span>
-      <span class="tag">{tag}</span>
+      <span class="tag" data-edit-slot="tag">{tag}</span>
     </div>
-    <h3>{title}</h3>
+    <h3 data-edit-slot="title">{title}</h3>
     <p class="excerpt">{excerpt}</p>
   </div>
   <div class="foot">

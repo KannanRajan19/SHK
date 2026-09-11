@@ -94,6 +94,12 @@ const currently = (await getEntry('settings', 'currently'))?.data as
       });
     </script>
     <script is:inline src="/scripts/trail.js"></script>
+    <script is:inline>
+      // Loads nothing for ordinary visitors: the module is only fetched when
+      // the owner's marker cookie is set, and it verifies the real session
+      // before rendering any control.
+      if (document.cookie.includes('ps_editor=1')) import('/scripts/edit.js');
+    </script>
   </body>
 </html>
 
