@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { isAllowedPath, safeUploadName, describeGitHubStatus } from '../../functions/lib/github';
+import {
+  isAllowedPath, safeUploadName, describeGitHubStatus, unusedImagePaths,
+} from '../../functions/lib/github';
 
 describe('isAllowedPath', () => {
   it('allows content and upload paths', () => {
@@ -71,5 +73,30 @@ describe('describeGitHubStatus', () => {
 
   it('falls back to the raw status for anything unrecognised', () => {
     expect(describeGitHubStatus(500)).toBe('github returned 500');
+  });
+});
+
+describe('unusedImagePaths', () => {
+  it('returns the image when nothing else references it', () => {
+    expect(unusedImagePaths(['/uploads/a.jpg'], { '/uploads/a.jpg': 1 }))
+      .toEqual(['public/uploads/a.jpg']);
+  });
+
+  it('keeps an image that another entry still uses', () => {
+    expect(unusedImagePaths(['/uploads/a.jpg'], { '/uploads/a.jpg': 2 })).toEqual([]);
+  });
+
+  it('ignores entries with no image', () => {
+    expect(unusedImagePaths(['', undefined as any], {})).toEqual([]);
+  });
+
+  it('ignores anything outside the uploads folder', () => {
+    expect(unusedImagePaths(['https://example.com/x.jpg', '/etc/passwd'], {})).toEqual([]);
+  });
+
+  it('handles several images at once', () => {
+    const usage = { '/uploads/a.jpg': 1, '/uploads/b.jpg': 3 };
+    expect(unusedImagePaths(['/uploads/a.jpg', '/uploads/b.jpg'], usage))
+      .toEqual(['public/uploads/a.jpg']);
   });
 });

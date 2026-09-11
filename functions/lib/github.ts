@@ -38,7 +38,7 @@ export function safeUploadName(original: string, stamp: number): string | null {
   return `${stamp}-${slug || 'image'}.${ext}`;
 }
 
-type PutArgs = {
+export type PutArgs = {
   token: string;
   repo: string;
   branch: string;
@@ -99,4 +99,52 @@ export function toBase64(text: string): string {
   let binary = '';
   for (const b of bytes) binary += String.fromCharCode(b);
   return btoa(binary);
+}
+
+/**
+ * Which uploaded images can safely be deleted along with their entry.
+ *
+ * Deleting an entry should take its image with it. But if another entry points
+ * at the same upload, removing the file would leave that one showing a broken
+ * image with nothing to explain it — so a shared image is kept. `usage` is a
+ * map of image path to how many entries reference it, built at page render.
+ */
+export function unusedImagePaths(
+  images: (string | undefined)[],
+  usage: Record<string, number>
+): string[] {
+  return images
+    .filter((img): img is string => typeof img === 'string' && img.startsWith('/uploads/'))
+    .filter((img) => (usage[img] ?? 0) <= 1)
+    .map((img) => `public${img}`);
+}
+
+/**
+ * Removes a file. The contents API needs the current blob sha, so this reads
+ * before it writes; a file that is already gone is treated as success, since
+ * the caller's intent — that it not exist — is satisfied either way.
+ */
+export async function deleteFile({
+  token, repo, branch, path, message,
+}: Omit<PutArgs, 'content'>): Promise<void> {
+  if (!isAllowedPath(path)) throw new Error('path not allowed');
+
+  const url = `https://api.github.com/repos/${repo}/contents/${path}`;
+  const headers = {
+    Authorization: `Bearer ${token}`,
+    Accept: 'application/vnd.github+json',
+    'User-Agent': 'paper-sky-admin',
+  };
+
+  const existing = await fetch(`${url}?ref=${encodeURIComponent(branch)}`, { headers });
+  if (existing.status === 404) return;
+  if (!existing.ok) throw new GitHubError(existing.status);
+
+  const { sha } = (await existing.json()) as { sha: string };
+  const res = await fetch(url, {
+    method: 'DELETE',
+    headers: { ...headers, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ message, sha, branch }),
+  });
+  if (!res.ok) throw new GitHubError(res.status);
 }

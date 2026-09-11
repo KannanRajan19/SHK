@@ -1,5 +1,5 @@
 import { requireSession, json } from '../lib/guard';
-import { putFile, toBase64, isAllowedPath, GitHubError } from '../lib/github';
+import { putFile, deleteFile, toBase64, isAllowedPath, GitHubError } from '../lib/github';
 
 interface Env {
   SESSION_SECRET?: string;
@@ -20,7 +20,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     return json({ ok: false, error: 'not configured' }, 503);
   }
 
-  let body: { files?: FileWrite[]; message?: string };
+  let body: { files?: FileWrite[]; deletes?: string[]; message?: string };
   try {
     body = await request.json();
   } catch {
@@ -28,13 +28,24 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   }
 
   const files = body.files ?? [];
-  if (files.length === 0) return json({ ok: false, error: 'nothing to publish' }, 400);
-  if (files.length > MAX_FILES) return json({ ok: false, error: 'too many files' }, 413);
+  const deletes = body.deletes ?? [];
 
-  // Validate every path before writing any of them, so a bad path in the
+  if (files.length === 0 && deletes.length === 0) {
+    return json({ ok: false, error: 'nothing to publish' }, 400);
+  }
+  if (files.length + deletes.length > MAX_FILES) {
+    return json({ ok: false, error: 'too many files' }, 413);
+  }
+
+  // Validate every path before touching any of them, so a bad path in the
   // middle of a batch cannot leave a half-applied publish behind.
   for (const file of files) {
     if (typeof file?.path !== 'string' || !isAllowedPath(file.path)) {
+      return json({ ok: false, error: 'path not allowed' }, 400);
+    }
+  }
+  for (const path of deletes) {
+    if (typeof path !== 'string' || !isAllowedPath(path)) {
       return json({ ok: false, error: 'path not allowed' }, 400);
     }
   }
@@ -55,6 +66,17 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
         message,
       });
     }
+    // Deletions run after writes: if a write fails the entry is still intact,
+    // which is the safer half-applied state to be left in.
+    for (const path of deletes) {
+      await deleteFile({
+        token: env.GITHUB_TOKEN,
+        repo: env.GITHUB_REPO,
+        branch,
+        path,
+        message,
+      });
+    }
   } catch (err) {
     // Says what went wrong without echoing GitHub's body, which can name the
     // repo and the token's scope.
@@ -62,5 +84,5 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     return json({ ok: false, error: detail }, 502);
   }
 
-  return json({ ok: true, files: files.length });
+  return json({ ok: true, files: files.length, deleted: deletes.length });
 };
