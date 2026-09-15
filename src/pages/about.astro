@@ -38,12 +38,22 @@ const rows: Array<[string, string]> = [
         <p class="closing" data-edit-slot="aboutBio4">{text.aboutBio4}</p>
       </div>
 
-      <div class="polaroid">
+      <div
+        class="polaroid"
+        data-edit="aboutphoto"
+        data-edit-about-photo={photo}
+        data-edit-about-photo-caption={photoCaption}
+      >
         <div class="tape" style="top: -10px; left: 50%; margin-left: -40px;"></div>
         {photo
-          ? <img src={photo} alt="sahana" style="aspect-ratio: 4/5; width: 100%; object-fit: cover; display: block;" />
+          ? <img
+              src={photo}
+              alt="sahana"
+              data-edit-slot="aboutPhoto"
+              style="aspect-ratio: 4/5; width: 100%; object-fit: cover; display: block;"
+            />
           : <div class="placeholder" style="aspect-ratio: 4/5; width: 100%;">a photo of me</div>}
-        <div class="polaroid-caption">{photoCaption}</div>
+        <div class="polaroid-caption" data-edit-slot="aboutPhotoCaption">{photoCaption}</div>
       </div>
     </div>
 

@@ -587,3 +587,19 @@ body.ed-on .ed-controls { display: flex; }
 .ed-form textarea:focus { border-bottom-color: var(--accent); }
 .ed-row { display: flex; gap: 8px; }
 .ed-pill.ed-save { border-color: var(--accent); color: var(--accent); }
+
+/* Current picture shown above the file picker when replacing one. */
+.ed-form .ed-thumb {
+  display: block;
+  width: 96px;
+  aspect-ratio: 4/5;
+  object-fit: cover;
+  border: 1px solid var(--rule);
+  margin: 4px 0 6px;
+}
+.ed-form input[type='file'] {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  border-bottom: none;
+  padding: 4px 0;
+}

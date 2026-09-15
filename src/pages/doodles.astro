@@ -35,13 +35,14 @@ const doodles = (await getCollection('doodles'))
         data-edit-id={d.id}
         data-edit-title={d.title}
         data-edit-note={d.note}
+        data-edit-image={d.image}
         data-edit-images={d.image}
       >
         <div class="tape" style="top: -12px; left: 36px; transform: rotate(-4deg);"></div>
         <div class="tape" style="top: -12px; right: 48px; transform: rotate(3deg);"></div>
         <div class="sheet">
           {d.image
-            ? <img src={d.image} alt={d.title} style="width: 100%; aspect-ratio: 4/3; object-fit: cover;" />
+            ? <img src={d.image} alt={d.title} data-edit-slot="image" style="width: 100%; aspect-ratio: 4/3; object-fit: cover;" />
             : <div class="placeholder" style="aspect-ratio: 4/3; width: 100%; font-size: 11px;">{d.placeholder}</div>}
           <div class="meta">
             <div>

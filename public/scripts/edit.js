@@ -91,6 +91,29 @@
   function field(spec, value) {
     const label = document.createElement('label');
     label.append(document.createTextNode(spec.label));
+
+    if (spec.type === 'image') {
+      // Shows what is there now, so "choose a file" reads as replacing
+      // something rather than filling a blank.
+      if (value) {
+        const preview = document.createElement('img');
+        preview.className = 'ed-thumb';
+        preview.src = value;
+        preview.alt = '';
+        label.appendChild(preview);
+      }
+      const picker = document.createElement('input');
+      picker.type = 'file';
+      picker.accept = 'image/*';
+      picker.dataset.k = spec.key;
+      picker.dataset.image = '1';
+      // The existing path travels with the field, so leaving the picker empty
+      // keeps the current picture instead of clearing it.
+      picker.dataset.current = value ?? '';
+      label.appendChild(picker);
+      return label;
+    }
+
     const input =
       spec.type === 'textarea'
         ? document.createElement('textarea')
@@ -100,6 +123,47 @@
     input.value = value ?? '';
     label.appendChild(input);
     return label;
+  }
+
+  /**
+   * Shrink before upload. A phone photo is several megabytes and every
+   * upload becomes a permanent commit, so full-size originals would bloat the
+   * repository within a few dozen pictures.
+   */
+  function downscale(file, max = 1600) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onerror = () => reject(new Error('could not read that file'));
+      reader.onload = () => {
+        const img = new Image();
+        img.onerror = () => reject(new Error('that file is not an image'));
+        img.onload = () => {
+          const scale = Math.min(1, max / Math.max(img.width, img.height));
+          const canvas = document.createElement('canvas');
+          canvas.width = Math.round(img.width * scale);
+          canvas.height = Math.round(img.height * scale);
+          canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+          resolve({
+            data: canvas.toDataURL('image/jpeg', 0.85).split(',')[1],
+            name: file.name.replace(/\.[^.]+$/, '') + '.jpg',
+          });
+        };
+        img.src = reader.result;
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  async function uploadImage(file) {
+    const { data, name } = await downscale(file);
+    const res = await fetch('/api/upload', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ filename: name, data }),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok || !body.ok) throw new Error(body.error ?? 'could not upload the picture');
+    return body.url;
   }
 
   async function publish(payload, label) {
@@ -119,10 +183,16 @@
     doodle: [
       { key: 'title', label: 'title', type: 'text' },
       { key: 'note', label: 'caption', type: 'textarea' },
+      { key: 'image', label: 'the drawing (leave empty to keep this one)', type: 'image' },
     ],
     picture: [
       { key: 'caption', label: 'caption', type: 'text' },
       { key: 'tag', label: 'tag', type: 'text' },
+      { key: 'image', label: 'the photo (leave empty to keep this one)', type: 'image' },
+    ],
+    aboutphoto: [
+      { key: 'aboutPhoto', label: 'your photo (leave empty to keep this one)', type: 'image' },
+      { key: 'aboutPhotoCaption', label: 'the little caption under it', type: 'text' },
     ],
     post: [
       { key: 'title', label: 'title', type: 'text' },
@@ -158,6 +228,7 @@
 
   /* Kinds whose edits patch a settings file instead of an entry. */
   const SETTINGS_PATH = {
+    aboutphoto: 'content/settings/site.json',
     homeintro: 'content/settings/text.json',
     abouttext: 'content/settings/text.json',
     currently: 'content/settings/currently.json',
@@ -288,10 +359,30 @@
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
+
+      const save = form.querySelector('.ed-save');
+      save.disabled = true;
+
       const next = {};
-      form.querySelectorAll('[data-k]').forEach((i) => (next[i.dataset.k] = i.value));
+      const pickers = [];
+      form.querySelectorAll('[data-k]').forEach((i) => {
+        if (i.dataset.image) pickers.push(i);
+        else next[i.dataset.k] = i.value;
+      });
 
       try {
+        // Upload any chosen picture first: the patch needs the resulting path,
+        // and an empty picker means keep whatever is already there.
+        for (const picker of pickers) {
+          const file = picker.files?.[0];
+          if (file) {
+            say('uploading the picture…');
+            next[picker.dataset.k] = await uploadImage(file);
+          } else {
+            next[picker.dataset.k] = picker.dataset.current ?? '';
+          }
+        }
+
         if (kind === 'book') {
           await publish(
             {
@@ -329,6 +420,8 @@
         form.remove();
       } catch (err) {
         say(err.message, 'bad');
+      } finally {
+        save.disabled = false;
       }
     });
   }
@@ -337,7 +430,10 @@
   function applyToDom(el, kind, values) {
     for (const [key, value] of Object.entries(values)) {
       const slot = el.querySelector(`[data-edit-slot="${key}"]`);
-      if (slot) slot.textContent = value;
+      if (!slot) continue;
+      // An image slot takes a src; everything else takes text.
+      if (slot.tagName === 'IMG') slot.src = value;
+      else slot.textContent = value;
     }
     if (kind === 'book') {
       const stars = el.querySelector('[data-edit-slot="ratingStars"]');
