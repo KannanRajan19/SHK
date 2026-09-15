@@ -135,6 +135,32 @@
       { key: 'rating', label: 'rating 0-5', type: 'number' },
       { key: 'note', label: 'note', type: 'textarea' },
     ],
+    // Settings rather than entries: they live in one shared file each, and
+    // there is nothing to delete -- only to change.
+    homeintro: [
+      { key: 'homeIntro1', label: 'first paragraph', type: 'textarea' },
+      { key: 'homeIntro2', label: 'second paragraph', type: 'textarea' },
+    ],
+    abouttext: [
+      { key: 'aboutBio1', label: 'first paragraph', type: 'textarea' },
+      { key: 'aboutBio2', label: 'second paragraph', type: 'textarea' },
+      { key: 'aboutBio3', label: 'third paragraph', type: 'textarea' },
+      { key: 'aboutBio4', label: 'the handwritten closing line', type: 'textarea' },
+    ],
+    currently: [
+      { key: 'reading', label: 'reading', type: 'text' },
+      { key: 'drawing', label: 'drawing', type: 'text' },
+      { key: 'listening', label: 'listening', type: 'text' },
+      { key: 'watching', label: 'watching', type: 'text' },
+      { key: 'learning', label: 'learning', type: 'text' },
+    ],
+  };
+
+  /* Kinds whose edits patch a settings file instead of an entry. */
+  const SETTINGS_PATH = {
+    homeintro: 'content/settings/text.json',
+    abouttext: 'content/settings/text.json',
+    currently: 'content/settings/currently.json',
   };
 
   const CONTENT_PATH = {
@@ -167,11 +193,14 @@
     const kind = el.dataset.edit;
     if (!FIELDS[kind]) return;
 
+    const isSetting = kind in SETTINGS_PATH;
     const controls = document.createElement('div');
     controls.className = 'ed-controls';
-    controls.innerHTML = `
-      <button class="ed-pill" data-ed-edit>edit</button>
-      <button class="ed-pill ed-danger" data-ed-del>remove</button>`;
+    controls.innerHTML =
+      '<button class="ed-pill" data-ed-edit>edit</button>' +
+      // Settings are shared values, not entries -- there is no sense in which
+      // "the currently widget" can be deleted, so no remove button.
+      (isSetting ? '' : '<button class="ed-pill ed-danger" data-ed-del>remove</button>');
     el.classList.add('ed-target');
     el.appendChild(controls);
 
@@ -181,11 +210,14 @@
       openEditor(el, kind);
     });
 
-    controls.querySelector('[data-ed-del]').addEventListener('click', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      confirmDelete(el, kind, controls);
-    });
+    const del = controls.querySelector('[data-ed-del]');
+    if (del) {
+      del.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        confirmDelete(el, kind, controls);
+      });
+    }
   }
 
   attachControls();
@@ -272,6 +304,14 @@
               message: `content: edit book "${next.title}"`,
             },
             'book'
+          );
+        } else if (SETTINGS_PATH[kind]) {
+          await publish(
+            {
+              patches: [{ path: SETTINGS_PATH[kind], values: next }],
+              message: `content: update ${kind}`,
+            },
+            kind
           );
         } else {
           const id = el.dataset.editId;

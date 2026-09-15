@@ -51,8 +51,14 @@ const updates = [
   <div class="page home">
     <section style="margin-top: 12px;">
       <p class="greeting">hi there!!</p>
-      <p class="intro">{text.homeIntro1}</p>
-      <p class="intro last">{text.homeIntro2}</p>
+      <div
+        data-edit="homeintro"
+        data-edit-home-intro1={text.homeIntro1}
+        data-edit-home-intro2={text.homeIntro2}
+      >
+        <p class="intro" data-edit-slot="homeIntro1">{text.homeIntro1}</p>
+        <p class="intro last" data-edit-slot="homeIntro2">{text.homeIntro2}</p>
+      </div>
       <div class="ctas">
         <a class="btn accent" href="/doodles">see today's doodle →</a>
         <a class="btn" href="/blog">read the blog</a>

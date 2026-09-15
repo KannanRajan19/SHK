@@ -24,11 +24,18 @@ const rows: Array<[string, string]> = [
     <h2 class="title-serif">a few things about me</h2>
 
     <div class="about-grid">
-      <div class="bio">
-        <p>{text.aboutBio1}</p>
-        <p>{text.aboutBio2}</p>
-        <p>{text.aboutBio3}</p>
-        <p class="closing">{text.aboutBio4}</p>
+      <div
+        class="bio"
+        data-edit="abouttext"
+        data-edit-about-bio1={text.aboutBio1}
+        data-edit-about-bio2={text.aboutBio2}
+        data-edit-about-bio3={text.aboutBio3}
+        data-edit-about-bio4={text.aboutBio4}
+      >
+        <p data-edit-slot="aboutBio1">{text.aboutBio1}</p>
+        <p data-edit-slot="aboutBio2">{text.aboutBio2}</p>
+        <p data-edit-slot="aboutBio3">{text.aboutBio3}</p>
+        <p class="closing" data-edit-slot="aboutBio4">{text.aboutBio4}</p>
       </div>
 
       <div class="polaroid">
@@ -44,11 +51,19 @@ const rows: Array<[string, string]> = [
 
     <section style="margin-top: 40px;">
       <div class="section-label"><span>currently</span></div>
-      <dl class="facts">
+      <dl
+        class="facts"
+        data-edit="currently"
+        data-edit-reading={currently.reading}
+        data-edit-drawing={currently.drawing}
+        data-edit-listening={currently.listening}
+        data-edit-watching={currently.watching}
+        data-edit-learning={currently.learning}
+      >
         {rows.map(([key, value]) => (
           <>
             <dt>{key}</dt>
-            <dd>{value}</dd>
+            <dd data-edit-slot={key}>{value}</dd>
           </>
         ))}
       </dl>
