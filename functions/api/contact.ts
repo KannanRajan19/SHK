@@ -51,7 +51,13 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
       },
       body: JSON.stringify({
         from: env.CONTACT_SENDER,
-        to: env.CONTACT_RECIPIENT,
+        // Resend wants an array for multiple recipients, so a comma-separated
+        // variable has to be split -- passed whole it reads as one malformed
+        // address and the whole send is rejected. Splitting a single address
+        // yields a one-element array, which is equally valid.
+        to: env.CONTACT_RECIPIENT.split(',')
+          .map((address) => address.trim())
+          .filter(Boolean),
         reply_to: body.email,
         subject: `paper sky — message from ${body.name}`,
         text: `from: ${body.name} <${body.email}>\n\n${body.message}`,
