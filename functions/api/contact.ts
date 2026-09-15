@@ -75,7 +75,23 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
           : res.status === 422
             ? 'the mail service rejected the sender or recipient address'
             : `the mail service returned ${res.status}`;
-    return json({ ok: false, error: reason }, MAIL_FAILED);
+
+    /*
+     * Resend's own message names the offending domain, which is the one fact
+     * that makes a rejection diagnosable. It is carried in a separate `detail`
+     * field rather than the visitor-facing `error`, truncated, and never the
+     * whole body -- that can echo back the request including the sender
+     * configuration.
+     */
+    let detail = '';
+    try {
+      const payload = (await res.json()) as { message?: string; name?: string };
+      detail = String(payload.message ?? payload.name ?? '').slice(0, 200);
+    } catch {
+      /* a non-JSON body tells us nothing worth surfacing */
+    }
+
+    return json({ ok: false, error: reason, detail }, MAIL_FAILED);
   }
 
   return json({ ok: true });
